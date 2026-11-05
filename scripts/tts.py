@@ -36,6 +36,7 @@ async def synth(key, text):
 
 
 async def main():
+    os.makedirs("voice", exist_ok=True)
     result = [await synth(k, t) for k, t in SCENES]
     with open("src/voice.json", "w", encoding="utf-8") as f:
         json.dump(result, f, ensure_ascii=False, indent=2)
