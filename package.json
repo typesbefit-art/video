@@ -1,0 +1,22 @@
+{
+  "name": "bublik-video",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Мультсериал про Бублика на Remotion",
+  "scripts": {
+    "studio": "remotion studio",
+    "render:ep01": "remotion render src/index.ts Ep01 out/ep01.mp4 --codec=h264",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.541",
+    "@remotion/studio": "4.0.541",
+    "react": "19.1.1",
+    "react-dom": "19.1.1",
+    "remotion": "4.0.541"
+  },
+  "devDependencies": {
+    "@types/react": "19.1.12",
+    "typescript": "5.9.3"
+  }
+}
