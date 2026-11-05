@@ -1,0 +1,31 @@
+{
+  "name": "samurai-bridge",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "studio": "remotion studio",
+    "render:test": "remotion render Samurai60 out/test_5s_60fps.mp4 --frames=0-299 --crf=18",
+    "render:60": "remotion render Samurai60 out/samurai_60fps.mp4 --crf=18",
+    "render:120": "remotion render Samurai120 out/samurai_120fps.mp4 --crf=18",
+    "tts": "python3 scripts/tts.py"
+  },
+  "dependencies": {
+    "@fontsource/ibm-plex-sans": "^5.3.0",
+    "@react-three/fiber": "^9.2.0",
+    "@remotion/cli": "^4.0.541",
+    "@remotion/fonts": "^4.0.541",
+    "@remotion/media": "^4.0.541",
+    "@remotion/three": "^4.0.541",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "remotion": "^4.0.541",
+    "three": "^0.178.0"
+  },
+  "devDependencies": {
+    "@remotion/bundler": "^4.0.541",
+    "@remotion/renderer": "^4.0.541",
+    "@types/react": "^19.3.0",
+    "@types/three": "^0.187.0",
+    "typescript": "^7.0.2"
+  }
+}
