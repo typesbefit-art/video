@@ -1,0 +1,19 @@
+{
+  "name": "talking-dogs-video",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "voice": "python3 scripts/make_voice.py",
+    "studio": "remotion studio src/index.ts",
+    "render": "remotion render src/index.ts TalkingDogs output/talking_dogs.mp4 --browser-executable=/opt/pw-browsers/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell"
+  },
+  "dependencies": {
+    "@fontsource/nunito": "^5.2.5",
+    "@remotion/cli": "^4.0.541",
+    "@types/react": "^18.3.12",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "remotion": "^4.0.541",
+    "typescript": "^5.6.3"
+  }
+}
