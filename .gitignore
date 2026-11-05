@@ -3,3 +3,4 @@ output/*.mp4
 !output/space.mp4
 .DS_Store
 public/music.mp3
+!output/space_voice.mp4

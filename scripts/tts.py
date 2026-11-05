@@ -35,9 +35,21 @@ async def synth(key, text):
     return {"key": key, "text": text, "file": path, "duration": duration(path), "words": words}
 
 
+async def synth_retry(key, text, attempts=20):
+    # Сервис edge-tts иногда рвёт соединение (1006) и не отдаёт аудио — повторяем
+    for i in range(attempts):
+        try:
+            return await synth(key, text)
+        except edge_tts.exceptions.NoAudioReceived:
+            if i == attempts - 1:
+                raise
+            print(f"{key}: нет аудио, повтор {i + 1}/{attempts - 1}")
+            await asyncio.sleep(min(2 * (i + 1), 10))
+
+
 async def main():
     os.makedirs("voice", exist_ok=True)
-    result = [await synth(k, t) for k, t in SCENES]
+    result = [await synth_retry(k, t) for k, t in SCENES]
     with open("src/voice.json", "w", encoding="utf-8") as f:
         json.dump(result, f, ensure_ascii=False, indent=2)
     for r in result:
