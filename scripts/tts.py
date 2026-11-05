@@ -15,7 +15,7 @@ if CA:
 import edge_tts
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-VOICE, RATE, FPS, PAUSE = "ru-RU-DmitryNeural", "-5%", 30, 0.4
+VOICE, RATE, FPS, PAUSE = "ru-RU-SvetlanaNeural", "-5%", 30, 0.4
 
 
 def norm(s):
