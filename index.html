@@ -1,0 +1,1178 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Тут все оттуда</title>
+<!--
+  «Тут все оттуда» — мультфильм ~45 секунд в одном HTML-файле.
+  Всё нарисовано в SVG, анимировано CSS keyframes + requestAnimationFrame (таймлайн).
+  Озвучка: Web Speech API (speechSynthesis, ru-RU).
+
+  Параметры адреса (для отладки):
+    ?mute=1    — без озвучки (длительность считается по длине фразы)
+    ?speed=8   — ускорить таймлайн в N раз (озвучка отключается)
+    ?scene=5   — сразу начать с указанной сцены (1..10)
+    ?format=vertical — вертикальный кадр 9:16 для Shorts / Reels / TikTok
+-->
+<style>
+  :root{ --ink:#1b1530; --ui:#ffd23f; }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; height:100%; background:#0c0a1d; color:#fff;
+    font-family:'Trebuchet MS','Segoe UI',Verdana,'DejaVu Sans',sans-serif; }
+  #app{ min-height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; padding:12px; }
+
+  /* ---------- Сцена 16:9 ---------- */
+  #stage{ position:relative; width:min(96vw, calc((100vh - 96px) * 16 / 9)); aspect-ratio:16/9;
+    overflow:hidden; border-radius:18px; border:4px solid var(--ink); background:#000;
+    box-shadow:0 12px 40px rgba(0,0,0,.55); container-type:inline-size; }
+  .layer{ position:absolute; inset:0; will-change:transform,opacity; }
+  .layer svg{ width:100%; height:100%; display:block; }
+
+  /* Переходы между сценами */
+  .in-fade  { animation:inFade .9s ease both; }
+  .out-fade { animation:outFade .9s ease both; }
+  .in-slide { animation:inSlide .9s cubic-bezier(.6,0,.2,1) both; }
+  .out-slide{ animation:outSlide .9s cubic-bezier(.6,0,.2,1) both; }
+  .in-zoom  { animation:inZoom 1s cubic-bezier(.3,0,.2,1) both; }
+  .out-zoom { animation:outFade 1s ease both; }
+  @keyframes inFade  { from{opacity:0} to{opacity:1} }
+  @keyframes outFade { from{opacity:1} to{opacity:0} }
+  @keyframes inSlide { from{transform:translateX(100%)} to{transform:none} }
+  @keyframes outSlide{ from{transform:none;opacity:1} to{transform:translateX(-35%);opacity:0} }
+  @keyframes inZoom  { from{transform:scale(1.35);opacity:0;filter:brightness(2.2)} to{transform:none;opacity:1;filter:none} }
+
+  /* Белая вспышка «пробуждения» */
+  #flash{ position:absolute; inset:0; background:#fff7d6; opacity:0; pointer-events:none; }
+  #flash.go{ animation:flash 1.1s ease-out both; }
+  @keyframes flash{ 0%{opacity:0} 25%{opacity:1} 100%{opacity:0} }
+
+  /* Субтитры */
+  #subs{ position:absolute; left:0; right:0; bottom:3.5%; text-align:center; pointer-events:none; z-index:5; }
+  #subText{ display:inline-block; max-width:88%; padding:.3em .85em; border-radius:.55em;
+    background:rgba(18,12,36,.78); border:2px solid rgba(255,255,255,.15);
+    font-weight:700; line-height:1.25; font-size:clamp(13px,2.4vw,30px); font-size:2.5cqw;
+    opacity:0; transform:translateY(12px); transition:opacity .4s, transform .4s; }
+  #subText.show{ opacity:1; transform:none; }
+  #subText.long{ font-size:clamp(12px,2vw,26px); font-size:2.05cqw; }
+
+  /* Заставка перед стартом */
+  #intro{ position:absolute; inset:0; z-index:10; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background:radial-gradient(circle at 30% 30%, #2a4b9b 0%, #142456 45%, #0b1230 100%); text-align:center; }
+  #intro::after{ content:""; position:absolute; inset:0; pointer-events:none;
+    background:linear-gradient(115deg, transparent 50%, rgba(255,170,60,.55) 50.2%, rgba(255,120,40,.7) 100%); }
+  #intro > *{ position:relative; z-index:1; }
+  #intro h1{ margin:0; font-size:7.2cqw; letter-spacing:.04em; color:#ffd23f;
+    -webkit-text-stroke:.35cqw var(--ink); paint-order:stroke fill; text-shadow:0 .5cqw 0 var(--ink); }
+  #intro p{ margin:.6em 0 1.2em; font-size:2cqw; opacity:.9; }
+  #intro svg{ width:18cqw; height:18cqw; }
+  #intro.hide{ animation:outFade .6s ease both; pointer-events:none; }
+
+  /* Панель управления */
+  #controls{ width:min(96vw, calc((100vh - 96px) * 16 / 9)); display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  button{ font:inherit; font-weight:800; font-size:16px; padding:9px 16px; border-radius:12px; cursor:pointer;
+    border:3px solid var(--ink); background:var(--ui); color:var(--ink); box-shadow:0 4px 0 var(--ink); transition:transform .1s; }
+  button:active{ transform:translateY(3px); box-shadow:0 1px 0 var(--ink); }
+  button:disabled{ opacity:.45; cursor:default; }
+  #btnPause{ background:#7fd3ff; } #btnRestart{ background:#ff8fc8; }
+  #bigStart{ font-size:2.4cqw; padding:.5em 1.4em; }
+  #progress{ position:relative; flex:1; min-width:120px; height:14px; border-radius:8px; background:#2a2547; border:2px solid #000; overflow:hidden; }
+  #bar{ position:absolute; left:0; top:0; bottom:0; width:0; background:linear-gradient(90deg,#3b6cff,#ffd23f,#ff7e5f); }
+  .tick{ position:absolute; top:0; bottom:0; width:2px; background:rgba(0,0,0,.55); }
+  #counter{ min-width:64px; text-align:right; font-weight:800; opacity:.85; }
+
+  /* Вертикальный формат 9:16 */
+  body.vert #stage, body.vert #controls{ width:min(96vw, calc((100vh - 96px) * 9 / 16)); }
+  body.vert #stage{ aspect-ratio:9/16; }
+  body.vert #subs{ bottom:25%; }
+  body.vert #subText{ max-width:86%; font-size:4.6cqw; }
+  body.vert #subText.long{ font-size:4.1cqw; }
+  body.vert #intro h1{ font-size:11cqw; } body.vert #intro p{ font-size:3.8cqw; }
+  body.vert #intro svg{ width:38cqw; height:38cqw; } body.vert #bigStart{ font-size:5.5cqw; }
+
+  /* ПАУЗА: замораживаем все CSS-анимации внутри сцены */
+  #stage.paused *, #stage.paused{ animation-play-state:paused !important; }
+
+  /* ================= Анимации персонажей и предметов ================= */
+  .fb{ transform-box:fill-box; transform-origin:center; }          /* вращение/масштаб вокруг центра элемента */
+  .breathe{ animation:breathe 2.6s ease-in-out infinite; }
+  @keyframes breathe{ 0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)} }
+  .blink{ transform-box:fill-box; transform-origin:center; animation:blink 4.2s infinite; }
+  @keyframes blink{ 0%,93%,100%{transform:scaleY(1)} 96%{transform:scaleY(.08)} }
+  .winkeye{ transform-box:fill-box; transform-origin:center; animation:wink 2.4s infinite; }
+  @keyframes wink{ 0%,35%,85%,100%{transform:scaleY(1)} 42%,75%{transform:scaleY(.08)} }
+  .wave{ animation:wave .8s ease-in-out infinite; }                  /* вращение руки вокруг плеча (0,0) */
+  @keyframes wave{ 0%,100%{transform:rotate(-14deg)} 50%{transform:rotate(16deg)} }
+  .shake{ animation:shake .32s linear infinite; }
+  @keyframes shake{ 0%,100%{transform:translate(0,0)} 20%{transform:translate(-7px,2px)} 40%{transform:translate(6px,-3px)} 60%{transform:translate(-5px,-2px)} 80%{transform:translate(7px,3px)} }
+  .shakeSoft{ animation:shake .6s linear infinite; }
+  .zz{ transform-box:fill-box; transform-origin:center; animation:zz 2.7s ease-out infinite both; }
+  @keyframes zz{ 0%{transform:translate(0,0) scale(.5);opacity:0} 20%{opacity:1} 100%{transform:translate(70px,-150px) scale(1.25);opacity:0} }
+  .pop{ transform-box:fill-box; transform-origin:center; animation:pop .55s cubic-bezier(.2,1.5,.4,1) both; }
+  @keyframes pop{ 0%{transform:scale(0);opacity:0} 60%{transform:scale(1.12);opacity:1} 100%{transform:scale(1);opacity:1} }
+  .dropIn{ animation:dropIn 1.05s ease-out both; }
+  @keyframes dropIn{ 0%{transform:translateY(-700px)} 55%{transform:translateY(24px)} 72%{transform:translateY(-12px)} 88%{transform:translateY(5px)} 100%{transform:translateY(0)} }
+  .swing{ animation:swing 2.4s ease-in-out infinite alternate; }
+  @keyframes swing{ from{transform:rotate(-2.2deg)} to{transform:rotate(2.2deg)} }
+  .spin{ animation:spin 40s linear infinite; }
+  .spinFast{ animation:spin 12s linear infinite; }
+  @keyframes spin{ to{transform:rotate(360deg)} }
+  .twinkle{ animation:twinkle 1.6s ease-in-out infinite alternate; }
+  @keyframes twinkle{ from{opacity:.25} to{opacity:1} }
+  .glow{ animation:glow 1.4s ease-in-out infinite alternate; }
+  @keyframes glow{ from{opacity:.55} to{opacity:1} }
+  .blinkFast{ animation:blinkFast .7s steps(2) infinite; }
+  @keyframes blinkFast{ 50%{opacity:.15} }
+  .drift{ animation:drift 9s ease-in-out infinite alternate; }
+  @keyframes drift{ to{transform:translateX(90px)} }
+  .sway{ animation:sway 3s ease-in-out infinite alternate; }
+  @keyframes sway{ from{transform:rotate(-2deg)} to{transform:rotate(2deg)} }
+  .vacuum{ animation:vacuum 7s ease-in-out both; }
+  @keyframes vacuum{ to{transform:translateX(420px)} }
+  .tvFlicker{ animation:tvf .12s steps(2) infinite; }
+  @keyframes tvf{ 50%{opacity:.88} }
+  .ball{ animation:ball .9s ease-in-out infinite alternate; }
+  @keyframes ball{ 0%{transform:translate(-40px,0)} 50%{transform:translate(0,-36px)} 100%{transform:translate(40px,0)} }
+  .jump{ animation:jump .7s ease-in-out infinite alternate; }
+  @keyframes jump{ to{transform:translateY(-34px)} }
+  .scroll{ animation:scroll 2.4s linear infinite; }
+  @keyframes scroll{ to{transform:translateX(-80px)} }
+  .tamaPet{ animation:tama .5s steps(2) infinite; }
+  @keyframes tama{ 50%{transform:translate(4px,-4px)} }
+  .beep{ transform-box:fill-box; transform-origin:50% 90%; animation:beep .25s ease-in-out infinite alternate; }
+  @keyframes beep{ from{transform:rotate(-8deg)} to{transform:rotate(8deg)} }
+  .chew{ transform-box:fill-box; transform-origin:center; animation:chew .32s ease-in-out infinite alternate; }
+  @keyframes chew{ to{transform:scaleY(.3) scaleX(1.15)} }
+  .gum{ transform-box:fill-box; transform-origin:center; animation:gum 3s ease-in infinite; }
+  @keyframes gum{ 0%,18%{transform:scale(0);opacity:1} 76%{transform:scale(1);opacity:1} 80%{transform:scale(1.15);opacity:1} 82%{transform:scale(1.35);opacity:0} 100%{transform:scale(0);opacity:0} }
+  .drip{ animation:drip 1.1s ease-in infinite; }
+  @keyframes drip{ 0%{transform:translateY(0);opacity:1} 100%{transform:translateY(22px);opacity:0} }
+  .faceA{ animation:hideA .12s both; }
+  @keyframes hideA{ to{opacity:0} }
+  .faceB{ animation:showB .12s both; }
+  @keyframes showB{ from{opacity:0} to{opacity:1} }
+  .strike{ stroke-dasharray:1; stroke-dashoffset:1; animation:strike .35s ease-out both; }
+  @keyframes strike{ to{stroke-dashoffset:0} }
+  .stamp{ transform-box:fill-box; transform-origin:center; animation:stamp .5s cubic-bezier(.3,1.4,.5,1) both; }
+  @keyframes stamp{ 0%{transform:scale(3) rotate(-12deg);opacity:0} 70%{transform:scale(.92) rotate(-12deg);opacity:1} 100%{transform:scale(1) rotate(-12deg);opacity:1} }
+  .flyPath{ animation:flyPath 5s ease-in-out infinite; }
+  @keyframes flyPath{ 0%,100%{transform:translate(0,0)} 25%{transform:translate(130px,-90px)} 50%{transform:translate(260px,10px)} 75%{transform:translate(120px,80px)} }
+  .flap{ transform-box:fill-box; transform-origin:center; animation:flap .22s ease-in-out infinite alternate; }
+  @keyframes flap{ to{transform:scaleX(.25)} }
+  .flapY{ transform-box:fill-box; transform-origin:center; animation:flapY .35s ease-in-out infinite alternate; }
+  @keyframes flapY{ to{transform:scaleY(-.6)} }
+  .fly{ animation:fly 8s linear infinite; }
+  @keyframes fly{ to{transform:translate(-500px,-60px)} }
+  .peck{ transform-box:fill-box; transform-origin:70% 90%; animation:peck .9s ease-in-out infinite; }
+  @keyframes peck{ 0%,60%,100%{transform:rotate(0)} 75%{transform:rotate(28deg)} }
+  .float{ animation:float 2.2s ease-in-out infinite alternate; }
+  @keyframes float{ to{transform:translateY(-14px)} }
+  .vibe{ animation:vibe .09s linear infinite alternate; }
+  @keyframes vibe{ from{transform:rotate(-1.4deg)} to{transform:rotate(1.4deg)} }
+  .flyOut{ transform-box:fill-box; transform-origin:center; animation:flyOut 1.3s ease-out infinite; }
+  @keyframes flyOut{ 0%{transform:translate(0,0) scale(.4);opacity:0} 20%{opacity:1} 100%{transform:translate(var(--dx),var(--dy)) scale(1.1);opacity:0} }
+  .cam{ transform-origin:800px 450px; animation:cam 9s ease-out both; }
+  @keyframes cam{ from{transform:scale(1)} to{transform:scale(1.06)} }
+  .title{ transform-box:fill-box; transform-origin:center; animation:pop .8s cubic-bezier(.2,1.6,.4,1) both, titleFloat 2s 1s ease-in-out infinite alternate; }
+  @keyframes titleFloat{ from{transform:scale(1) rotate(-2deg)} to{transform:scale(1.04) rotate(2deg)} }
+</style>
+</head>
+<body>
+<!-- Общие градиенты и узоры (на них ссылаются все сцены) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="gNight" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#050d26"/><stop offset="1" stop-color="#1c3a7a"/></linearGradient>
+    <linearGradient id="gRoomNight" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#18295a"/><stop offset="1" stop-color="#0e1a40"/></linearGradient>
+    <linearGradient id="gScreen" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8fe3ff"/><stop offset="1" stop-color="#3a5cff"/></linearGradient>
+    <linearGradient id="gMorning" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe7a0"/><stop offset="1" stop-color="#ffc061"/></linearGradient>
+    <linearGradient id="gYard" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffc56b"/><stop offset="1" stop-color="#fff0c4"/></linearGradient>
+    <linearGradient id="gGold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffab5e"/><stop offset="1" stop-color="#ffe3a8"/></linearGradient>
+    <linearGradient id="gSunset" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3d2470"/><stop offset=".42" stop-color="#b8407a"/><stop offset=".72" stop-color="#ff8248"/><stop offset="1" stop-color="#ffd36e"/></linearGradient>
+    <radialGradient id="rGlow"><stop offset="0" stop-color="#9fe8ff" stop-opacity=".75"/><stop offset="1" stop-color="#9fe8ff" stop-opacity="0"/></radialGradient>
+    <radialGradient id="rWarm"><stop offset="0" stop-color="#fff6c8" stop-opacity=".9"/><stop offset="1" stop-color="#fff6c8" stop-opacity="0"/></radialGradient>
+    <radialGradient id="rSun"><stop offset="0" stop-color="#fff2a8"/><stop offset=".6" stop-color="#ffd36e" stop-opacity=".6"/><stop offset="1" stop-color="#ffd36e" stop-opacity="0"/></radialGradient>
+    <pattern id="pDots" width="28" height="28" patternUnits="userSpaceOnUse"><circle cx="14" cy="14" r="4.5" fill="#fff" opacity=".2"/></pattern>
+    <pattern id="pStripes" width="80" height="10" patternUnits="userSpaceOnUse"><rect width="40" height="10" fill="#000" opacity=".05"/></pattern>
+    <pattern id="pParquet" width="120" height="40" patternUnits="userSpaceOnUse"><rect width="120" height="40" fill="#c77d3a"/><path d="M0,0 H120 M60,0 V20 M0,20 H120 M30,20 V40 M90,20 V40" stroke="#a9622a" stroke-width="3"/></pattern>
+  </defs>
+</svg>
+
+<div id="app">
+  <div id="stage">
+    <div id="layers"></div>
+    <div id="flash"></div>
+    <div id="subs"><span id="subText"></span></div>
+    <div id="intro">
+      <svg id="introArt" viewBox="-110 -130 220 220"></svg>
+      <h1>ТУТ ВСЕ ОТТУДА</h1>
+      <p>мультфильм · ~45 секунд · включите звук 🔊</p>
+      <button id="bigStart">▶ Старт</button>
+    </div>
+  </div>
+  <div id="controls">
+    <button id="btnStart">▶ Старт</button>
+    <button id="btnPause" disabled>⏸ Пауза</button>
+    <button id="btnRestart" disabled>↺ Заново</button>
+    <div id="progress"><div id="bar"></div></div>
+    <span id="counter">0 / 10</span>
+  </div>
+</div>
+
+<script>
+'use strict';
+/* =====================================================================
+   0. Утилиты
+   ===================================================================== */
+const INK = '#1b1530';            // цвет толстых контуров
+const SKIN = '#ffd2a6';
+let _uid = 0;
+const uid = (p = 'u') => `${p}${++_uid}`;           // уникальные id для clipPath
+// Детерминированный генератор случайных чисел (чтобы кадры были одинаковыми)
+function rng(seed) {
+  return function () {
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+// Отразить путь по X (для симметричных бровей)
+const mirror = d => d.replace(/(-?\d+\.?\d*),(-?\d+\.?\d*)/g, (m, x, y) => `${-x},${y}`);
+// Текст без обводки (или с обводкой при o.outline)
+function T(x, y, str, size, fill = INK, o = {}) {
+  const stroke = o.outline ? `stroke="${o.stroke || INK}" stroke-width="${o.outline}" paint-order="stroke"` : 'stroke="none"';
+  return `<text x="${x}" y="${y}" font-size="${size}" fill="${fill}" text-anchor="${o.anchor || 'middle'}" font-weight="${o.weight || 900}" ${stroke} ${o.cls ? `class="${o.cls}"` : ''} ${o.style ? `style="${o.style}"` : ''}>${str}</text>`;
+}
+const at = (x, y, inner, s = 1, r = 0) => `<g transform="translate(${x},${y}) rotate(${r}) scale(${s})">${inner}</g>`;
+const delay = d => `style="animation-delay:${d}s"`;
+
+/* =====================================================================
+   1. ПЕРСОНАЖИ: универсальный Character + пресет Dima
+      Локальная система: (0,0) — точка между ступнями, рост ≈ 420.
+   ===================================================================== */
+
+// Позы рук: e — локоть, h — кисть (относительно плеча, для правой руки; левая зеркалится)
+const ARM = {
+  down:  { e: [14, 55],  h: [12, 112] },
+  wave:  { e: [48, -30], h: [58, -108] },
+  up:    { e: [58, -48], h: [72, -128] },
+  hold:  { e: [22, 62],  h: [-22, 80] },
+  phone: { e: [26, 58],  h: [-18, 30] },
+  mouth: { e: [18, 48],  h: [-48, -52] },
+  shh:   { e: [24, 44],  h: [-46, -36] },
+  hips:  { e: [44, 40],  h: [8, 92] },
+  game:  { e: [22, 64],  h: [-26, 78] },
+  point: { e: [55, 5],   h: [115, -15] },
+};
+
+function arm(side, pose, sleeve, skin, item, waveDelay) {
+  const p = ARM[pose] || ARM.down;
+  const ex = p.e[0] * side, ey = p.e[1], hx = p.h[0] * side, hy = p.h[1];
+  const d = `M0,0 L${ex},${ey} L${hx},${hy}`;
+  let hand = `<circle cx="${hx}" cy="${hy}" r="15" fill="${skin}"/>`;
+  if (pose === 'shh') hand += `<rect x="${hx - 5}" y="${hy - 40}" width="11" height="34" rx="5.5" fill="${skin}" stroke-width="4"/>`;
+  const it = item ? `<g transform="translate(${hx},${hy})">${item}</g>` : '';
+  const anim = pose === 'wave' ? `class="wave" ${delay(waveDelay || 0)}` : '';
+  // Рука = толстая тёмная линия (контур) + линия цвета рукава поверх
+  return `<g transform="translate(${side * 52},-245)"><g ${anim}>
+    <path d="${d}" fill="none" stroke-width="34"/><path d="${d}" fill="none" stroke="${sleeve}" stroke-width="22"/>
+    ${it}${hand}</g></g>`;
+}
+
+function legsStand(o) {
+  const dress = o.top === 'dress';
+  const c = dress ? o.skin : o.pants, w = dress ? 20 : 32;
+  return `<rect x="${-6 - w}" y="-118" width="${w}" height="108" rx="8" fill="${c}"/>
+    <rect x="6" y="-118" width="${w}" height="108" rx="8" fill="${c}"/>
+    <path d="M-50,-2 Q-50,-24 -22,-24 Q-4,-24 -4,-2Z" fill="${o.shoes}"/>
+    <path d="M50,-2 Q50,-24 22,-24 Q4,-24 4,-2Z" fill="${o.shoes}"/>`;
+}
+function legsSit(o) {
+  const c = o.pants;
+  return `<rect x="-40" y="-50" width="30" height="42" rx="8" fill="${c}"/><rect x="10" y="-50" width="30" height="42" rx="8" fill="${c}"/>
+    <rect x="-48" y="-76" width="44" height="36" rx="15" fill="${c}"/><rect x="4" y="-76" width="44" height="36" rx="15" fill="${c}"/>
+    <path d="M-50,-2 Q-50,-24 -22,-24 Q-4,-24 -4,-2Z" fill="${o.shoes}"/>
+    <path d="M50,-2 Q50,-24 22,-24 Q4,-24 4,-2Z" fill="${o.shoes}"/>`;
+}
+
+// Варианты одежды (торс)
+const TORSO = {
+  hoodie: o => `<path d="M-52,-258 C-68,-200 -66,-150 -58,-105 L58,-105 C66,-150 68,-200 52,-258 Q0,-274 -52,-258Z" fill="${o.topColor}"/>
+    <rect x="-58" y="-122" width="116" height="18" rx="6" fill="${o.topColor2}"/>
+    <path d="M-34,-168 L34,-168 L42,-126 L-42,-126Z" fill="${o.topColor2}" stroke-width="5"/>
+    <path d="M-44,-262 Q0,-220 44,-262 Q34,-290 0,-290 Q-34,-290 -44,-262Z" fill="${o.topColor2}"/>
+    <path d="M-12,-246 L-15,-200 M12,-246 L15,-200" stroke="#fff" stroke-width="5" fill="none"/>
+    <circle cx="-15" cy="-198" r="5" fill="#fff" stroke-width="3"/><circle cx="15" cy="-198" r="5" fill="#fff" stroke-width="3"/>`,
+  tshirt: o => {
+    const shape = 'M-50,-258 C-62,-200 -60,-150 -56,-105 L56,-105 C60,-150 62,-200 50,-258 Q0,-270 -50,-258Z';
+    let s = `<path d="${shape}" fill="${o.topColor}"/>`;
+    if (o.stripes) {
+      for (let y = -240; y < -110; y += 32) s += `<rect x="-57" y="${y}" width="114" height="13" fill="${o.topColor2}" stroke="none"/>`;
+      s += `<path d="${shape}" fill="none"/>`;
+    } else s += `<circle cx="0" cy="-185" r="20" fill="${o.topColor2}" stroke-width="4"/><path d="M-8,-185 L8,-185 M0,-193 L0,-177" stroke="#fff" stroke-width="4"/>`;
+    return s + `<path d="M-20,-262 Q0,-238 20,-262" fill="none" stroke-width="5"/>`;
+  },
+  jacket: o => `<path d="M-54,-258 C-68,-200 -66,-150 -60,-100 L60,-100 C66,-150 68,-200 54,-258 Q0,-272 -54,-258Z" fill="${o.topColor}"/>
+    <path d="M-22,-262 L0,-196 L22,-262 Z" fill="#f4efe2" stroke-width="4"/>
+    <path d="M-22,-262 L-36,-232 L-8,-222 L0,-196Z" fill="${o.topColor2}" stroke-width="4"/>
+    <path d="M22,-262 L36,-232 L8,-222 L0,-196Z" fill="${o.topColor2}" stroke-width="4"/>
+    <path d="M0,-196 L0,-102 M-44,-148 L-20,-148 M20,-148 L44,-148" fill="none" stroke-width="4"/>
+    <circle cx="-8" cy="-170" r="4" fill="${INK}" stroke="none"/><circle cx="-8" cy="-136" r="4" fill="${INK}" stroke="none"/>
+    <circle cx="34" cy="-212" r="8" fill="#ffd23f" stroke-width="3"/>`,
+  dress: o => `<path d="M-48,-258 C-62,-200 -82,-120 -92,-58 L92,-58 C82,-120 62,-200 48,-258 Q0,-272 -48,-258Z" fill="${o.topColor}"/>
+    <circle cx="-40" cy="-110" r="7" fill="${o.topColor2}" stroke="none"/><circle cx="55" cy="-90" r="7" fill="${o.topColor2}" stroke="none"/><circle cx="-62" cy="-75" r="7" fill="${o.topColor2}" stroke="none"/>
+    <path d="M-38,-195 L38,-195 L52,-72 L-52,-72Z" fill="#fff" stroke-width="5"/>
+    <path d="M-22,-160 Q0,-150 22,-160" fill="none" stroke="#ff7eb6" stroke-width="4"/>
+    <path d="M-22,-262 Q0,-236 22,-262" fill="none" stroke-width="5"/>`,
+};
+
+/* ---- Лицо и эмоции: [глаза, брови, рот, доп.] ---- */
+const EMO = {
+  neutral: ['open', 'flat', 'line'],
+  smile:   ['open', 'flat', 'smile'],
+  happy:   ['happy', 'up', 'openSmile', 'blush'],
+  sleep:   ['closed', 'relaxed', 'o'],
+  shock:   ['big', 'up', 'O'],
+  panic:   ['big', 'worried', 'wavy', 'sweat'],
+  nervous: ['open', 'worried', 'grin', 'sweat'],
+  chew:    ['half', 'relaxed', 'chew'],
+  wink:    ['wink', 'sly', 'smile', 'blush'],
+  worried: ['open', 'worried', 'frown'],
+  shh:     ['open', 'sly', 'o'],
+};
+
+function Eye(x, type, cls) {
+  switch (type) {
+    case 'big': return `<g class="blink"><ellipse cx="${x}" cy="-6" rx="17" ry="23" fill="#fff" stroke-width="4"/><circle cx="${x}" cy="-4" r="5" fill="${INK}" stroke="none"/></g>`;
+    case 'closed': return `<path d="M${x - 12},-4 Q${x},6 ${x + 12},-4" fill="none" stroke-width="5"/>`;
+    case 'happy': return `<path d="M${x - 12},-2 Q${x},-16 ${x + 12},-2" fill="none" stroke-width="5"/>`;
+    case 'half': return `<ellipse cx="${x}" cy="-6" rx="13" ry="17" fill="#fff" stroke-width="4"/><circle cx="${x + 3}" cy="-1" r="7" fill="${INK}" stroke="none"/>
+      <path d="M${x - 15},-6 L${x + 15},-6 L${x + 15},-26 L${x - 15},-26Z" style="fill:var(--skin)" stroke="none"/><path d="M${x - 14},-6 L${x + 14},-6" stroke-width="5"/>`;
+    default: return `<g class="${cls || 'blink'}"><ellipse cx="${x}" cy="-6" rx="13" ry="17" fill="#fff" stroke-width="4"/>
+      <circle cx="${x + 2}" cy="-3" r="7" fill="${INK}" stroke="none"/><circle cx="${x + 4.5}" cy="-6.5" r="2.4" fill="#fff" stroke="none"/></g>`;
+  }
+}
+function Brows(t, color, dy = 0) {
+  const P = { flat: 'M-40,-36 L-12,-36', up: 'M-42,-48 Q-26,-60 -10,-48', worried: 'M-40,-34 L-12,-47',
+              relaxed: 'M-40,-32 Q-26,-36 -12,-32', sly: 'M-42,-46 Q-26,-58 -10,-46' };
+  const L = P[t] || P.flat, R = mirror(P[t === 'sly' ? 'flat' : t] || P.flat);
+  return `<g transform="translate(0,${dy})" fill="none" stroke="${color}" stroke-width="9"><path d="${L}"/><path d="${R}"/></g>`;
+}
+function Mouth(t) {
+  switch (t) {
+    case 'smile': return `<path d="M-24,24 Q0,50 24,24" fill="none" stroke-width="5"/>`;
+    case 'openSmile': return `<path d="M-28,20 Q0,66 28,20 Z" fill="#7a1f2b" stroke-width="5"/><path d="M-14,44 Q0,36 14,44 Q0,56 -14,44Z" fill="#ff7a8a" stroke="none"/>`;
+    case 'grin': return `<rect x="-24" y="20" width="48" height="20" rx="9" fill="#fff" stroke-width="5"/><path d="M-24,30 L24,30 M-8,20 L-8,40 M8,20 L8,40" stroke-width="3"/>`;
+    case 'o': return `<ellipse cx="0" cy="34" rx="7" ry="8" fill="#7a1f2b" stroke-width="4"/>`;
+    case 'O': return `<ellipse cx="0" cy="36" rx="14" ry="20" fill="#7a1f2b" stroke-width="5"/>`;
+    case 'wavy': return `<path d="M-24,34 q6,-9 12,0 t12,0 t12,0 t12,0" fill="none" stroke-width="5"/>`;
+    case 'frown': return `<path d="M-16,38 Q0,24 16,38" fill="none" stroke-width="5"/>`;
+    case 'chew': return `<ellipse class="chew" cx="4" cy="32" rx="12" ry="7" fill="#7a1f2b" stroke-width="4"/>
+      <g class="gum"><circle cx="8" cy="36" r="34" fill="#ff8fc8" fill-opacity=".93" stroke-width="5"/><ellipse cx="-6" cy="22" rx="8" ry="5" fill="#fff" opacity=".8" stroke="none"/></g>`;
+    default: return `<path d="M-14,30 Q0,37 14,30" fill="none" stroke-width="5"/>`;
+  }
+}
+// part: 'main' — глаза/нос/рот, 'brows' — брови (рисуются поверх причёски)
+function Face(em, o, part) {
+  const [ey, br, mo, ex] = EMO[em] || EMO.neutral;
+  if (part === 'brows') return Brows(br, o.browColor || o.hair, o.browDy || 0);
+  let s = ey === 'wink' ? Eye(-25, 'open') + Eye(25, 'open', 'winkeye') : Eye(-25, ey) + Eye(25, ey);
+  s += `<path d="M-3,6 Q7,14 -2,20" fill="none" stroke-width="4"/>` + Mouth(mo);
+  if (ex === 'blush') s += `<ellipse cx="-42" cy="18" rx="12" ry="7" fill="#ff7a8a" opacity=".55" stroke="none"/><ellipse cx="42" cy="18" rx="12" ry="7" fill="#ff7a8a" opacity=".55" stroke="none"/>`;
+  if (ex === 'sweat') s += `<g class="drip"><path d="M64,-44 Q76,-24 64,-16 Q52,-24 64,-44Z" fill="#8fd8ff" stroke-width="4"/></g>`;
+  return s;
+}
+
+// Причёски: сзади головы (back) и спереди (front)
+const HAIR_BACK = {
+  curly: o => `<ellipse cx="0" cy="0" rx="96" ry="86" fill="${o.hair}"/>`,
+};
+const HAIR = {
+  messy: o => `<path d="M-74,0 C-80,-40 -70,-70 -50,-78 L-64,-102 L-30,-88 L-28,-117 L-5,-92 L10,-120 L22,-90 L50,-110 L45,-80 L78,-84 L62,-55 C75,-40 78,-20 74,0 C60,-30 40,-45 10,-40 L0,-56 L-10,-38 C-40,-42 -60,-30 -74,0Z" fill="${o.hair}"/>
+    <path d="M-30,-70 Q-10,-80 8,-70" fill="none" stroke="#7a4a33" stroke-width="5"/>`,
+  curly: o => {
+    let s = '';
+    for (let a = -170; a <= -10; a += 20) {
+      const r = a * Math.PI / 180;
+      s += `<circle cx="${(72 * Math.cos(r)).toFixed(1)}" cy="${(72 * Math.sin(r) - 8).toFixed(1)}" r="24" fill="${o.hair}"/>`;
+    }
+    return s + `<circle cx="0" cy="-98" r="30" fill="${o.hair}"/><circle cx="-20" cy="-55" r="20" fill="${o.hair}"/><circle cx="18" cy="-56" r="20" fill="${o.hair}"/>`;
+  },
+  cap: o => `<path d="M-60,-20 Q-70,-36 -62,-50" fill="none" stroke="${o.hair}" stroke-width="12"/>
+    <path d="M-70,-30 Q-72,-94 0,-96 Q72,-94 70,-30 Q0,-46 -70,-30Z" fill="${o.capColor || '#e74c3c'}"/>
+    <path d="M44,-62 Q98,-74 116,-52 Q96,-38 62,-42Z" fill="${o.capColor2 || '#b83227'}"/><circle cx="0" cy="-96" r="7" fill="#fff" stroke-width="4"/>`,
+  bowl: o => `<path d="M-72,0 Q-80,-88 0,-90 Q80,-88 72,0 L62,0 Q58,-34 36,-38 L-36,-38 Q-58,-34 -62,0Z" fill="${o.hair}"/>`,
+  short: o => `<path d="M-70,-10 Q-74,-80 -20,-86 L-10,-102 L5,-86 L22,-100 L30,-84 Q72,-78 70,-10 Q50,-50 0,-52 Q-50,-50 -70,-10Z" fill="${o.hair}"/>`,
+  grandpa: o => `<ellipse cx="-63" cy="-8" rx="14" ry="22" fill="#eee"/><ellipse cx="63" cy="-8" rx="14" ry="22" fill="#eee"/>
+    <path d="M-74,-34 Q-74,-96 0,-96 Q80,-94 84,-38 Q0,-54 -74,-34Z" fill="#6f6f78"/>
+    <path d="M-76,-34 Q0,-60 88,-38 Q92,-26 72,-24 Q0,-38 -74,-24Z" fill="#55555e"/>`,
+};
+
+function Head(o) {
+  const swap = !!o.emotion2;
+  const part = p => swap
+    ? `<g class="faceA" ${delay(o.swapAt)}>${Face(o.emotion, o, p)}</g><g class="faceB" ${delay(o.swapAt)}>${Face(o.emotion2, o, p)}</g>`
+    : Face(o.emotion, o, p);
+  let s = (HAIR_BACK[o.hairStyle] ? HAIR_BACK[o.hairStyle](o) : '');
+  s += `<circle cx="-66" cy="4" r="15" fill="${o.skin}"/><circle cx="66" cy="4" r="15" fill="${o.skin}"/>`;
+  s += `<circle r="68" fill="${o.skin}"/>`;
+  if (o.earrings) s += `<circle cx="-68" cy="26" r="9" fill="#ffd23f" stroke-width="4"/><circle cx="68" cy="26" r="9" fill="#ffd23f" stroke-width="4"/>`;
+  s += part('main');
+  if (o.beard) s += `<path d="M-28,42 Q0,80 28,42 Q0,54 -28,42Z" fill="#f2f2f2" stroke-width="4"/><path d="M-32,24 Q-15,8 0,18 Q15,8 32,24 Q15,32 0,25 Q-15,32 -32,24Z" fill="#f2f2f2" stroke-width="4"/>`;
+  s += (HAIR[o.hairStyle] || HAIR.messy)(o);
+  s += part('brows');
+  if (o.glasses) s += `<g fill="#bfe6ff" fill-opacity=".35" stroke-width="5"><circle cx="-25" cy="-6" r="21"/><circle cx="25" cy="-6" r="21"/><path d="M-4,-8 Q0,-13 4,-8" fill="none"/></g>`;
+  return `<g style="--skin:${o.skin}">${s}</g>`;
+}
+
+const CHAR_DEFAULTS = {
+  x: 0, y: 0, s: 1, flip: false, skin: SKIN, hair: '#4a2c1d', hairStyle: 'messy', top: 'hoodie',
+  topColor: '#36b5b0', topColor2: '#23807c', sleeve: null, pants: '#3a5aa8', shoes: '#ffffff',
+  pose: 'stand', armL: 'down', armR: 'down', itemL: '', itemR: '', prop: '',
+  emotion: 'neutral', emotion2: null, swapAt: 0, waveDelay: 0, anim: 'breathe',
+};
+/** Универсальный персонаж. Возвращает SVG-строку. */
+function Character(opt) {
+  const o = Object.assign({}, CHAR_DEFAULTS, opt);
+  const sleeve = o.sleeve || o.topColor;
+  const sit = o.pose === 'sit';
+  const legs = sit ? legsSit(o) : legsStand(o);
+  const upper = `<rect x="-14" y="-284" width="28" height="36" fill="${o.skin}"/>` + TORSO[o.top](o) +
+    `<g transform="translate(0,-335)">${Head(o)}</g>` + o.prop +
+    arm(-1, o.armL, sleeve, o.skin, o.itemL, o.waveDelay) + arm(1, o.armR, sleeve, o.skin, o.itemR, o.waveDelay + .15);
+  return `<g transform="translate(${o.x},${o.y}) scale(${o.s * (o.flip ? -1 : 1)},${o.s})">${legs}
+    <g transform="translate(0,${sit ? 50 : 0})"><g class="${o.anim}">${upper}</g></g></g>`;
+}
+/** Главный герой: Дима, ~25 лет, лохматый, бирюзовое худи */
+const Dima = (o = {}) => Character(Object.assign({ hairStyle: 'messy', hair: '#4a2c1d', top: 'hoodie', topColor: '#36b5b0', topColor2: '#23807c', pants: '#3a5aa8', shoes: '#ffffff' }, o));
+// Остальные жители двора
+const KID1 = { hairStyle: 'cap', hair: '#6b3b1f', top: 'tshirt', topColor: '#ffd23f', topColor2: '#e67e22', pants: '#4b6cb7', shoes: '#eee', skin: '#ffcfa0' };
+const KID2 = { hairStyle: 'short', hair: '#1e1e1e', top: 'tshirt', stripes: true, topColor: '#ffffff', topColor2: '#3b6cff', pants: '#2f3e46', shoes: '#e74c3c', skin: '#e8b48a' };
+const BOY = { hairStyle: 'bowl', hair: '#f2c14e', browColor: '#b9852a', top: 'tshirt', topColor: '#7bd389', topColor2: '#3d9a4a', pants: '#c0392b', shoes: '#fff' };
+const GRANDPA = { hairStyle: 'grandpa', hair: '#eee', browColor: '#f6f6f6', browDy: 8, top: 'jacket', topColor: '#8a6a4a', topColor2: '#6e523a', pants: '#5a5a66', shoes: '#3a2a20', glasses: true, beard: true, skin: '#f5c49c' };
+const SELLER = { hairStyle: 'curly', hair: '#e2572b', top: 'dress', topColor: '#ff7eb6', topColor2: '#ffd1e6', shoes: '#c0392b', earrings: true };
+
+/* =====================================================================
+   2. ПРЕДМЕТЫ: телефон, ТВ, тамагочи, раскладушка, геймпад, пузырь...
+   ===================================================================== */
+
+/** Смартфон 2026. Локально 120×230, центр в (0,0). mode: 'glow' | 'nosignal' */
+function Phone(mode = 'glow') {
+  let scr;
+  if (mode === 'nosignal') {
+    scr = `<rect x="-52" y="-104" width="104" height="208" rx="12" fill="#0e1a3c" stroke="none"/>
+      <g stroke="none" fill="#7f8cb0"><rect x="-46" y="-86" width="3" height="4"/><rect x="-41" y="-88" width="3" height="6"/><rect x="-36" y="-90" width="3" height="8"/><rect x="-31" y="-92" width="3" height="10"/></g>
+      <path d="M-47,-93 L-27,-81 M-27,-93 L-47,-81" stroke="#ff3b3b" stroke-width="2.4"/>
+      ${T(-23, -83, 'Нет сети', 9, '#fff', { anchor: 'start', weight: 700 })}
+      <rect x="26" y="-93" width="18" height="10" rx="2" fill="none" stroke="#ff6b6b" stroke-width="1.6"/><rect x="27.5" y="-91.5" width="3" height="7" fill="#ff3b3b" stroke="none"/><rect x="44" y="-90" width="2" height="4" fill="#ff6b6b" stroke="none"/>
+      <g class="blinkFast"><rect x="-30" y="-74" width="60" height="16" rx="8" fill="#ff3b3b" stroke="none"/>${T(0, -62, 'заряд 14%', 9.5, '#fff')}</g>
+      <g fill="none" stroke="#7f8cb0" stroke-width="6"><path d="M-34,-24 Q0,-52 34,-24"/><path d="M-22,-10 Q0,-30 22,-10"/><path d="M-10,4 Q0,-6 10,4"/></g>
+      <circle cx="0" cy="16" r="5" fill="#7f8cb0" stroke="none"/>
+      <path d="M-32,-52 L32,26" stroke="#ff3b3b" stroke-width="7"/>
+      ${T(0, 46, 'Нет подключения', 10.5, '#cfd8ff', { weight: 700 })}${T(0, 60, 'к интернету', 10.5, '#cfd8ff', { weight: 700 })}
+      <rect x="-30" y="72" width="60" height="18" rx="9" fill="#3b6cff" stroke="none"/>${T(0, 85, 'Повторить', 9, '#fff', { weight: 700 })}`;
+  } else {
+    const cols = ['#ff6b6b', '#ffd23f', '#7bd389', '#ff8fc8', '#ffffff', '#9b7bff', '#ff9f43', '#4ad3e0', '#ff6b6b'];
+    let icons = '';
+    cols.forEach((c, i) => { icons += `<rect x="${-38 + (i % 3) * 28}" y="${-10 + Math.floor(i / 3) * 30}" width="20" height="20" rx="6" fill="${c}" stroke="none"/>`; });
+    scr = `<rect x="-52" y="-104" width="104" height="208" rx="12" fill="url(#gScreen)" stroke="none"/>${T(0, -48, '02:47', 30, '#fff')}${T(0, -30, '06.11.2026', 10, '#e8f6ff', { weight: 700 })}${icons}`;
+  }
+  return `<g><rect x="-60" y="-115" width="120" height="230" rx="18" fill="#1d1d2b"/>${scr}
+    <rect x="-16" y="-100" width="32" height="8" rx="4" fill="#1d1d2b" stroke="none"/>
+    <rect x="60" y="-60" width="5" height="30" rx="2" fill="#1d1d2b" stroke-width="3"/></g>`;
+}
+
+/** Ламповый телевизор. (0,0) — низ корпуса по центру. mode: 'bars'|'football'|'game' */
+function TV(mode = 'bars', o = {}) {
+  const id = uid('tv');
+  let c = '';
+  if (mode === 'bars') {
+    ['#fff', '#ffe600', '#00e5ff', '#00d455', '#ff3df2', '#ff2b2b', '#2b4bff'].forEach((col, i) => { c += `<rect x="${-126 + i * 27.2}" y="-238" width="28" height="140" fill="${col}" stroke="none"/>`; });
+    c += `<rect x="-126" y="-98" width="190" height="60" fill="#222" stroke="none"/><circle cx="-31" cy="-150" r="56" fill="none" stroke="#fff" stroke-width="5"/>
+      <path d="M-87,-150 H25 M-31,-206 V-94" stroke="#fff" stroke-width="3"/>${T(-31, -58, 'НАСТРОЙКА', 18, '#fff')}`;
+  } else if (mode === 'football') {
+    c = `<rect x="-126" y="-238" width="190" height="200" fill="#2ea44f" stroke="none"/>
+      <g fill="none" stroke="#e8ffe8" stroke-width="3"><circle cx="-31" cy="-110" r="26"/><path d="M-126,-110 H64"/><rect x="-71" y="-50" width="80" height="20"/></g>
+      <rect x="-104" y="-226" width="146" height="54" rx="10" fill="#1b1530" stroke="none"/>${T(-31, -186, '2 : 1', 40, '#ffd23f')}
+      <g class="ball" style="transform-box:view-box"><circle cx="-31" cy="-90" r="10" fill="#fff" stroke-width="3"/></g>`;
+  } else { // game — пиксельная бродилка
+    c = `<rect x="-126" y="-238" width="190" height="200" fill="#5a8cff" stroke="none"/>
+      <g class="scroll"><g fill="#fff" stroke="none"><rect x="-90" y="-210" width="40" height="12"/><rect x="-80" y="-220" width="20" height="10"/><rect x="10" y="-200" width="40" height="12"/><rect x="20" y="-210" width="20" height="10"/><rect x="70" y="-215" width="40" height="12"/></g>
+      ${[...Array(8)].map((_, i) => `<rect x="${-126 + i * 40}" y="-70" width="38" height="32" fill="${i % 2 ? '#c8662a' : '#e07b39'}" stroke="none"/>`).join('')}
+      <rect x="-10" y="-120" width="22" height="22" fill="#ffd23f" stroke="#7a4a00" stroke-width="3"/>${T(1, -103, '?', 16, '#7a4a00')}</g>
+      <g class="jump"><g stroke="none"><rect x="-70" y="-100" width="20" height="10" fill="#e74c3c"/><rect x="-72" y="-90" width="24" height="12" fill="#ffcf9e"/><rect x="-72" y="-78" width="24" height="8" fill="#3b6cff"/></g></g>`;
+  }
+  return `<g>
+    <path d="M-10,-262 L-70,-360 M10,-262 L72,-352" fill="none" stroke-width="6"/><circle cx="-70" cy="-360" r="8" fill="#ff6b6b"/><circle cx="72" cy="-352" r="8" fill="#ff6b6b"/>
+    <ellipse cx="0" cy="-262" rx="40" ry="16" fill="#444"/>
+    <rect x="-150" y="-262" width="300" height="252" rx="26" fill="#a0642e"/>
+    <rect x="-138" y="-250" width="276" height="228" rx="20" fill="#8a5222" stroke="none"/>
+    <clipPath id="${id}"><rect x="-126" y="-238" width="190" height="200" rx="34"/></clipPath>
+    <rect x="-126" y="-238" width="190" height="200" rx="34" fill="#222"/>
+    <g clip-path="url(#${id})"><g class="tvFlicker">${c}</g><path d="M-110,-225 Q-60,-232 -40,-215 Q-90,-210 -112,-170Z" fill="#fff" opacity=".35" stroke="none"/></g>
+    <rect x="-126" y="-238" width="190" height="200" rx="34" fill="none" stroke-width="8"/>
+    <circle cx="102" cy="-205" r="17" fill="#ddd"/><circle cx="102" cy="-155" r="12" fill="#ddd"/>
+    <path d="M82,-115 H122 M82,-100 H122 M82,-85 H122 M82,-70 H122" stroke-width="4"/>
+    <rect x="-120" y="-12" width="22" height="22" rx="4" fill="#5a3416"/><rect x="98" y="-12" width="22" height="22" rx="4" fill="#5a3416"/>
+  </g>`;
+}
+
+/** Тамагочи (яйцо с пиксельным питомцем). Центр в (0,0), ~80 высотой */
+function Tamagotchi(color = '#ff6fb5') {
+  const pet = [[1, 0], [2, 0], [3, 0], [0, 1], [1, 1], [2, 1], [3, 1], [4, 1], [0, 2], [2, 2], [4, 2], [0, 3], [1, 3], [2, 3], [3, 3], [4, 3], [1, 4], [3, 4]]
+    .map(([x, y]) => `<rect x="${-9 + x * 3.6}" y="${-19 + y * 3.6}" width="3.6" height="3.6" fill="${INK}" stroke="none"/>`).join('');
+  return `<g><circle cx="0" cy="-50" r="8" fill="none" stroke-width="4"/>
+    <path d="M0,-44 C30,-44 40,-10 38,10 C36,36 20,46 0,46 C-20,46 -36,36 -38,10 C-40,-10 -30,-44 0,-44Z" fill="${color}"/>
+    <rect x="-21" y="-25" width="42" height="32" rx="6" fill="#bfe3a5" stroke-width="4"/>
+    <g class="tamaPet">${pet}</g>
+    <circle cx="-14" cy="25" r="5" fill="#ffe066" stroke-width="3"/><circle cx="0" cy="30" r="5" fill="#ffe066" stroke-width="3"/><circle cx="14" cy="25" r="5" fill="#ffe066" stroke-width="3"/></g>`;
+}
+
+/** Телефон-раскладушка «из будущего» */
+function FlipPhone(text = '2031') {
+  return `<g><rect x="-26" y="0" width="52" height="72" rx="9" fill="#c9ced8"/>
+    ${[0, 1, 2].map(r => [0, 1, 2].map(c => `<rect x="${-18 + c * 13}" y="${10 + r * 14}" width="10" height="9" rx="3" fill="#fff" stroke-width="2"/>`).join('')).join('')}
+    <rect x="-28" y="-6" width="56" height="10" rx="5" fill="#9aa1ad"/>
+    <rect x="-26" y="-82" width="52" height="78" rx="9" fill="#5b6273"/>
+    <rect x="-20" y="-74" width="40" height="52" rx="5" fill="#6ff7ff" class="glow"/>
+    ${T(0, -42, text, 15, '#063a5a')}<circle cx="0" cy="-14" r="3" fill="#333" stroke="none"/></g>`;
+}
+
+const Gamepad = () => `<g><rect x="-42" y="-18" width="84" height="36" rx="14" fill="#4a4a5c"/>
+  <path d="M-30,0 H-14 M-22,-8 V8" stroke="#16141f" stroke-width="6"/>
+  <circle cx="16" cy="3" r="6" fill="#e74c3c" stroke-width="3"/><circle cx="30" cy="-5" r="6" fill="#e74c3c" stroke-width="3"/></g>`;
+
+/** Речевой пузырь. Хвостик направлен к точке (tx,ty). */
+function Bubble(x, y, w, h, lines, o = {}) {
+  const { tx = x + w / 2, ty = y + h + 60, d = 0, size = 44, fill = '#fff', color = INK } = o;
+  let b1, b2, tip = [tx, ty], inner;
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  if (ty > y + h) { const bx = clamp(tx, x + 50, x + w - 50); b1 = [bx - 24, y + h - 4]; b2 = [bx + 24, y + h - 4]; }
+  else if (tx > x + w) { const by = clamp(ty, y + 40, y + h - 40); b1 = [x + w - 4, by - 22]; b2 = [x + w - 4, by + 22]; }
+  else if (tx < x) { const by = clamp(ty, y + 40, y + h - 40); b1 = [x + 4, by - 22]; b2 = [x + 4, by + 22]; }
+  else { const bx = clamp(tx, x + 50, x + w - 50); b1 = [bx - 24, y + 4]; b2 = [bx + 24, y + 4]; }
+  inner = [(b1[0] + b2[0]) / 2 * .3 + tip[0] * .7, (b1[1] + b2[1]) / 2 * .3 + tip[1] * .7];
+  const n = lines.length, lh = size * 1.2, y0 = y + h / 2 - (n - 1) * lh / 2 + size * .36;
+  const txt = lines.map((l, i) => T(x + w / 2, y0 + i * lh, l, size, color)).join('');
+  return `<g class="pop" ${delay(d)}>
+    <polygon points="${b1} ${b2} ${tip}" fill="${fill}"/>
+    <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${Math.min(40, h / 2)}" fill="${fill}" stroke-width="7"/>
+    <polygon points="${b1[0] + (b1[0] < b2[0] ? 6 : 0)},${b1[1] + (b1[1] < b2[1] ? 6 : 0)} ${b2[0] - (b1[0] < b2[0] ? 6 : 0)},${b2[1] - (b1[1] < b2[1] ? 6 : 0)} ${inner}" fill="${fill}" stroke="none"/>
+    ${txt}</g>`;
+}
+
+/* ---- Окружение ---- */
+function Stars(n, x0, y0, w, h, seed) {
+  const r = rng(seed); let s = '';
+  for (let i = 0; i < n; i++) s += `<circle class="twinkle" ${delay((r() * 2).toFixed(2))} cx="${(x0 + r() * w).toFixed(0)}" cy="${(y0 + r() * h).toFixed(0)}" r="${(1.5 + r() * 2.5).toFixed(1)}" fill="#fff" stroke="none"/>`;
+  return s;
+}
+function Cloud(x, y, s = 1, d = 0) {
+  return `<g transform="translate(${x},${y}) scale(${s})"><g class="drift" ${delay(d)} fill="#fff" stroke="none" opacity=".9">
+    <circle cx="0" cy="0" r="40"/><circle cx="45" cy="-15" r="50"/><circle cx="95" cy="0" r="38"/><rect x="0" y="0" width="95" height="38"/></g></g>`;
+}
+function Sun(x, y, r = 70, rays = true) {
+  let ray = '';
+  if (rays) for (let i = 0; i < 12; i++) ray += `<path d="M0,${-r - 18} L0,${-r - 50}" transform="rotate(${i * 30})" stroke="#ffb000" stroke-width="10"/>`;
+  return `<g transform="translate(${x},${y})"><circle r="${r * 2.2}" fill="url(#rSun)" stroke="none"/><g class="spinFast">${ray}</g><circle r="${r}" fill="#ffe36e"/></g>`;
+}
+function Tree(x, y, s = 1) {
+  return `<g transform="translate(${x},${y}) scale(${s})"><g class="sway">
+    <path d="M-18,0 L-12,-190 L12,-190 L18,0Z" fill="#8a5a33"/>
+    <circle cx="-60" cy="-230" r="70" fill="#4fae5a"/><circle cx="60" cy="-240" r="72" fill="#4fae5a"/><circle cx="0" cy="-300" r="85" fill="#5cc168"/>
+    <circle cx="-25" cy="-320" r="18" fill="#7ad687" stroke="none"/></g></g>`;
+}
+/** Панельная многоэтажка */
+function Building(o) {
+  const { x, y, w, h, cols, rows, color = '#e8d3ad', seam = '#c9ae84', win = '#8fc3e8', lit = 0, seed = 1, balcony = true } = o;
+  const r = rng(seed), cw = w / cols, rh = h / rows;
+  let s = `<rect x="${x - 12}" y="${y - 16}" width="${w + 24}" height="22" fill="${seam}"/><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${color}"/>`;
+  for (let i = 1; i < cols; i++) s += `<path d="M${x + i * cw},${y} V${y + h}" stroke="${seam}" stroke-width="3"/>`;
+  for (let j = 1; j < rows; j++) s += `<path d="M${x},${y + j * rh} H${x + w}" stroke="${seam}" stroke-width="3"/>`;
+  for (let i = 0; i < cols; i++) for (let j = 0; j < rows; j++) {
+    const wx = x + i * cw + cw * .25, wy = y + j * rh + rh * .2, ww = cw * .5, wh = rh * .5;
+    const isLit = r() < lit;
+    s += `<rect x="${wx}" y="${wy}" width="${ww}" height="${wh}" fill="${isLit ? '#ffd66b' : win}" stroke-width="4" ${isLit && r() < .3 ? 'class="twinkle"' : ''}/>`;
+    s += `<path d="M${wx + ww / 2},${wy} V${wy + wh}" stroke-width="3"/>`;
+    if (!isLit && r() < .25) s += `<rect x="${wx + 3}" y="${wy + 3}" width="${ww * .3}" height="${wh - 6}" fill="#ff9f43" stroke="none"/>`;
+    if (balcony && i % 3 === 1 && j > 0 && j < rows) s += `<rect x="${wx - 10}" y="${wy + wh * .6}" width="${ww + 20}" height="${rh * .32}" fill="${seam}" stroke-width="4"/>`;
+  }
+  return s;
+}
+function Bench(x, y, w) {
+  return `<g><rect x="${x + 24}" y="${y - 112}" width="12" height="112" fill="#555"/><rect x="${x + w - 36}" y="${y - 112}" width="12" height="112" fill="#555"/>
+    <rect x="${x}" y="${y - 112}" width="${w}" height="22" rx="6" fill="#6cbf5a"/><rect x="${x}" y="${y - 76}" width="${w}" height="22" rx="6" fill="#6cbf5a"/>
+    <rect x="${x + 20}" y="${y + 14}" width="16" height="48" fill="#555"/><rect x="${x + w - 36}" y="${y + 14}" width="16" height="48" fill="#555"/>
+    <rect x="${x - 10}" y="${y}" width="${w + 20}" height="22" rx="6" fill="#4fa046"/></g>`;
+}
+const Bird = (x, y, s = 1, d = 0) => `<g transform="translate(${x},${y}) scale(${s})"><g class="fly" ${delay(d)}><g class="flapY"><path d="M-16,0 Q-8,-10 0,0 Q8,-10 16,0" fill="none" stroke-width="5"/></g></g></g>`;
+const Pigeon = (x, y, s = 1, d = 0) => `<g transform="translate(${x},${y}) scale(${s})"><g class="peck" ${delay(d)}>
+  <ellipse cx="0" cy="-20" rx="26" ry="18" fill="#9aa3b5"/><circle cx="22" cy="-38" r="12" fill="#7d879b"/><path d="M33,-38 L42,-35 L33,-32Z" fill="#ffb000" stroke-width="3"/><circle cx="25" cy="-40" r="2.5" fill="${INK}" stroke="none"/>
+  <path d="M-8,-2 V6 M6,-2 V6" stroke="#ff7a50" stroke-width="4"/></g></g>`;
+const Butterfly = () => `<g class="flyPath"><g class="flap"><ellipse cx="-14" cy="-6" rx="16" ry="20" fill="#ff7eb6"/><ellipse cx="14" cy="-6" rx="16" ry="20" fill="#ff7eb6"/>
+  <ellipse cx="-10" cy="14" rx="10" ry="12" fill="#ffd23f"/><ellipse cx="10" cy="14" rx="10" ry="12" fill="#ffd23f"/></g><rect x="-3" y="-20" width="6" height="40" rx="3" fill="${INK}" stroke="none"/></g>`;
+
+/* ---- Крупные части сцен (используются и в 16:9, и в 9:16) ---- */
+/** Ночное окно 2026 с луной и неоновым городом (локально 420×330) */
+const NightWindow = () => `        <rect x="0" y="0" width="420" height="330" rx="12" fill="url(#gNight)" stroke-width="10"/>
+        ${Stars(18, 10, 10, 400, 180, 7)}
+        <circle cx="320" cy="80" r="70" fill="url(#rWarm)" stroke="none" opacity=".5"/><circle cx="320" cy="80" r="40" fill="#fff6c9"/><circle cx="308" cy="70" r="7" fill="#efe3a8" stroke="none"/><circle cx="330" cy="92" r="5" fill="#efe3a8" stroke="none"/>
+        <g fill="#0b1636" stroke="none"><rect x="10" y="200" width="60" height="125"/><rect x="75" y="160" width="45" height="165"/><rect x="125" y="215" width="70" height="110"/><rect x="200" y="140" width="40" height="185"/><rect x="250" y="190" width="80" height="135"/><rect x="335" y="225" width="75" height="100"/></g>
+        <rect x="218" y="128" width="4" height="12" fill="#0b1636" stroke="none"/><circle cx="220" cy="126" r="5" fill="#ff3b6b" stroke="none" class="blinkFast"/>
+        ${[[20, 215], [40, 240], [85, 180], [95, 230], [140, 235], [165, 260], [210, 160], [210, 200], [265, 210], [295, 240], [350, 245], [380, 270]].map(([a, b], i) => `<rect x="${a}" y="${b}" width="10" height="8" fill="${i % 3 ? '#5ff2ff' : '#ffd66b'}" stroke="none" class="twinkle" ${delay(i * .3)}/>`).join('')}
+        <rect x="205" y="0" width="10" height="330" fill="#2c4a8a" stroke="none"/><rect x="0" y="160" width="420" height="10" fill="#2c4a8a" stroke="none"/>
+        <rect x="-15" y="325" width="450" height="22" rx="6" fill="#2c4a8a"/>
+`;
+/** Неоновая табличка «2026» (локально 320×170) */
+const Poster2026 = () => `<rect width="320" height="170" rx="18" fill="#0d1838" stroke="#5ff2ff" stroke-width="6" class="glow"/>
+        ${T(160, 110, '2026', 96, '#5ff2ff', { cls: 'glow' })}${T(160, 150, 'NEO-ГОД', 22, '#ff7eb6')}`;
+/** Кровать со спящим Димой, одеялом и светящимся телефоном (координаты сцены 1600×900) */
+const SleepingBed = () => `      <rect x="200" y="380" width="70" height="350" rx="20" fill="#4a3a80"/>
+      <rect x="230" y="560" width="1010" height="150" rx="20" fill="#3d2f6b"/><rect x="250" y="700" width="30" height="40" fill="#2b2050"/><rect x="1190" y="700" width="30" height="40" fill="#2b2050"/>
+      <rect x="260" y="540" width="960" height="60" rx="22" fill="#dfe5ff"/>
+      <ellipse cx="380" cy="525" rx="130" ry="48" fill="#f4f6ff"/>
+      ${at(395, 465, Head(Object.assign({}, CHAR_DEFAULTS, { emotion: 'sleep' })), .95, -16)}
+      <g opacity=".14"><ellipse cx="420" cy="470" rx="90" ry="70" fill="#5ff2ff" stroke="none" class="glow"/></g>
+      <g class="breathe"><path d="M470,522 C520,470 640,455 760,470 C880,485 1000,468 1100,478 C1180,488 1225,520 1228,560 L1228,640 L462,640 Z" fill="#2f5bc4"/>
+        <path d="M560,500 C600,560 610,600 600,640 M800,478 C820,540 830,590 820,640 M1040,476 C1060,540 1060,590 1050,640" fill="none" stroke="#3f6fe0" stroke-width="10"/></g>
+      <circle cx="700" cy="560" r="170" fill="url(#rGlow)" stroke="none" class="glow"/>
+      <path d="M520,520 Q600,600 668,582" fill="none" stroke-width="34"/><path d="M520,520 Q600,600 668,582" fill="none" stroke="#36b5b0" stroke-width="22"/>
+      ${at(705, 560, Phone('glow'), .42, -24)}<circle cx="676" cy="580" r="15" fill="${SKIN}"/>
+      <g transform="translate(470,400)">${['Z', 'Z', 'Z'].map((z, i) => T(i * 10, 0, z, 44 + i * 16, '#cfe0ff', { outline: 6, cls: 'zz', style: `animation-delay:${i * .9}s` })).join('')}</g>`;
+/** Ковёр на стену (локально 600×420) */
+function Carpet() {
+      let carpet = '';
+      for (let i = 0; i < 15; i++) carpet += `<path d="M${30 + i * 40},14 l12,-10 l12,10 l-12,10Z" fill="#f2c14e" stroke="none"/><path d="M${30 + i * 40},406 l12,-10 l12,10 l-12,10Z" fill="#f2c14e" stroke="none"/>`;
+      for (let i = 0; i < 31; i++) carpet += `<path d="M${10 + i * 20},420 v18 M${10 + i * 20},0 v-16" stroke="#a8231f" stroke-width="5"/>`;
+  return `<rect width="600" height="420" rx="10" fill="#a8231f" stroke-width="8"/>${carpet}
+        <rect x="30" y="30" width="540" height="360" fill="#c7372f" stroke="#f2c14e" stroke-width="12"/>
+        <polygon points="300,70 470,210 300,350 130,210" fill="#1f4e8c" stroke="#f2c14e" stroke-width="8"/>
+        <polygon points="300,130 395,210 300,290 205,210" fill="#f2c14e" stroke="none"/><polygon points="300,170 345,210 300,250 255,210" fill="#c7372f" stroke="none"/>
+        ${[[80, 80], [520, 80], [80, 340], [520, 340]].map(([a, b]) => `<polygon points="${a},${b - 30} ${a + 30},${b} ${a},${b + 30} ${a - 30},${b}" fill="#1f4e8c" stroke="#f2c14e" stroke-width="5"/>`).join('')}`;
+}
+/** Отрывной календарь «1996» (локально 160×200) */
+const Calendar1996 = () => `<g class="swing"><rect width="160" height="200" rx="8" fill="#fff"/><rect width="160" height="50" rx="8" fill="#e74c3c"/>
+        <circle cx="45" cy="0" r="8" fill="#ddd"/><circle cx="115" cy="0" r="8" fill="#ddd"/>${T(80, 36, 'ИЮНЬ', 26, '#fff')}${T(80, 130, '1996', 56, INK)}${T(80, 175, 'понедельник', 20, '#e74c3c')}</g>`;
+/** Табурет с пищащим тамагочи (центр табурета (400,640)) */
+const StoolTama = () => `      <g transform="translate(400,640)"><ellipse cx="0" cy="0" rx="90" ry="22" fill="#b06a35"/><path d="M-60,10 L-70,120 M60,10 L70,120 M0,20 L0,125" stroke-width="12"/><path d="M-60,10 L-70,120 M60,10 L70,120 M0,20 L0,125" stroke="#b06a35" stroke-width="6"/></g>
+      <g transform="translate(400,590) scale(1.4)"><g class="beep">${Tamagotchi()}</g></g>
+      ${['♪', '♫', '!'].map((c, i) => T(450 + i * 40, 500 - i * 30, c, 40, '#ff3df2', { outline: 5, cls: 'zz', style: `animation-delay:${i * .5}s` })).join('')}
+`;
+/** Тумба с ламповым ТВ (левый верх тумбы (1150,590)) */
+const TVCabinet = () => `      <rect x="1150" y="590" width="350" height="150" rx="10" fill="#8a4b22"/><rect x="1170" y="610" width="150" height="110" rx="6" fill="#a0602e"/><rect x="1330" y="610" width="150" height="110" rx="6" fill="#a0602e"/>
+      <circle cx="1300" cy="665" r="6" fill="#ffd23f"/><circle cx="1350" cy="665" r="6" fill="#ffd23f"/>
+      ${at(1325, 592, TV('bars'))}
+`;
+/** Киоск «ПРОДУКТЫ» с продавщицей в окошке (локально 820×620) */
+function Kiosk() {
+      const r = rng(11); let bottles = '';
+      for (let row = 0; row < 2; row++) for (let i = 0; i < 12; i++) {
+        const bx = 140 + i * 46, sy = 230 + row * 95, c = ['#7bd389', '#ff6b6b', '#ffd23f', '#9b7bff', '#4ad3e0'][Math.floor(r() * 5)];
+        bottles += `<rect x="${bx}" y="${sy - 56}" width="22" height="56" rx="5" fill="${c}" stroke-width="4"/><rect x="${bx + 6}" y="${sy - 70}" width="10" height="16" fill="${c}" stroke-width="4"/>`;
+      }
+  return `        <rect x="0" y="60" width="820" height="560" fill="#2d9c8f" stroke-width="8"/>
+        <rect x="120" y="130" width="580" height="300" fill="#fff6d8"/>
+        <path d="M120,230 H700 M120,325 H700" stroke-width="6"/>${bottles}
+        ${Character(Object.assign({}, SELLER, { x: 410, y: 530, s: .85, emotion: 'wink', armR: 'wave', armL: 'hips' }))}
+        <g class="pop" ${delay(1.2)}><path d="M455,215 l8,-20 l8,20 l20,8 l-20,8 l-8,20 l-8,-20 l-20,-8Z" fill="#fff36b" class="twinkle"/></g>
+        <rect x="255" y="130" width="12" height="300" fill="#2d9c8f" stroke-width="5"/><rect x="555" y="130" width="12" height="300" fill="#2d9c8f" stroke-width="5"/>
+        <rect x="120" y="130" width="580" height="300" fill="none" stroke-width="10"/>
+        <rect x="0" y="430" width="820" height="190" fill="#2d9c8f" stroke-width="8"/>
+        <rect x="290" y="418" width="240" height="22" rx="5" fill="#ddd"/>
+        ${[0, 1, 2, 3, 4].map(i => `<rect x="${305 + i * 44}" y="${396}" width="34" height="22" rx="4" fill="${['#ff8fc8', '#ffd23f', '#7fd3ff', '#ff6b6b', '#7bd389'][i]}" stroke-width="4"/>`).join('')}
+        <rect x="40" y="460" width="210" height="120" rx="10" fill="#ffe066" stroke-width="6"/>${T(145, 510, 'ЖВАЧКА', 36, '#d63031')}${T(145, 556, 'с вкладышем', 24, INK)}
+        <rect x="570" y="460" width="210" height="120" rx="10" fill="#ff8fc8" stroke-width="6"/>${T(675, 510, 'ЛИМОНАД', 34, '#fff', { outline: 6 })}${T(675, 556, 'Буратино', 26, INK)}
+        <rect x="-30" y="-10" width="880" height="80" rx="10" fill="#e74c3c"/>${T(410, 50, 'ПРОДУКТЫ', 58, '#fff', { outline: 6 })}
+        <g transform="translate(830,10)"><g class="swing"><circle r="50" fill="#ffd23f" stroke-width="6"/>${T(0, 2, '24', 36, INK)}${T(0, 26, 'ЧАСА', 16, INK)}</g></g>
+`;
+}
+
+/** Зачёркнутые «слова из будущего»; pos(i) → [x,y] */
+function FutureWords(pos, s = 1) {
+  return ['лайк', 'зум', 'вайб', 'кринж', 'хайп', 'сторис'].map((t, i) => {
+    const [x, y] = pos(i), d = .9 + i * .3;
+    return `<g transform="translate(${x},${y}) rotate(${(i % 2 ? 5 : -5)}) scale(${s})"><g class="pop" ${delay(d)}>
+      <rect x="-95" y="-45" width="190" height="90" rx="30" fill="#fff" stroke-width="6"/>${T(0, 14, t, 42, INK)}
+      <path class="strike" ${delay(d + .35)} pathLength="1" d="M-80,-30 L80,30 M80,-30 L-80,30" fill="none" stroke="#ff3b3b" stroke-width="10"/></g></g>`;
+  }).join('');
+}
+
+/** Плашка-правило, падает сверху и покачивается на верёвках */
+function RulePlate(n, lines, color = '#ffe066', o = {}) {
+  const { cx = 800, w = 900, size = 54, dy = 0 } = o, hw = w / 2, rp = Math.round(w / 3);
+  const txt = lines.map((l, i) => T(0, 238 + i * size * 1.15 - (lines.length - 1) * size * .575, l, size, INK)).join('');
+  return `<g transform="translate(${cx},${dy})"><g class="dropIn"><g class="swing">
+    <path d="M${-rp},${-20 - dy} L${-rp},90 M${rp},${-20 - dy} L${rp},90" stroke-width="7"/>
+    <rect x="${-hw}" y="80" width="${w}" height="250" rx="30" fill="${color}" stroke-width="10"/>
+    <rect x="${-hw + 22}" y="100" width="${w - 44}" height="210" rx="22" fill="none" stroke="#d63031" stroke-width="5" stroke-dasharray="18 12"/>
+    <circle cx="${-rp}" cy="96" r="9" fill="#888"/><circle cx="${rp}" cy="96" r="9" fill="#888"/>
+    ${T(0, 146, `ПРАВИЛО ${n}`, 46, '#d63031')}${txt}</g></g></g>`;
+}
+function ruleBg(col1, col2, W = 1600, H = 900, cx = 800, cy = 520) {
+  const R = Math.hypot(W, H);
+  return `<rect width="${W}" height="${H}" fill="${col1}"/><g transform="translate(${cx},${cy})"><g class="spin">${
+    [...Array(12)].map((_, i) => { const a = i * 30 * Math.PI / 180, b = (i * 30 + 15) * Math.PI / 180;
+      return `<polygon points="0,0 ${R * Math.cos(a)},${R * Math.sin(a)} ${R * Math.cos(b)},${R * Math.sin(b)}" fill="${col2}" stroke="none"/>`; }).join('')
+  }</g></g><rect width="${W}" height="${H}" fill="url(#pDots)" stroke="none"/>`;
+}
+
+/* =====================================================================
+   3. СЦЕНЫ: { duration (мин. длительность, с), subtitle, voice, transition, draw() }
+   ===================================================================== */
+const scenes = [
+  // ---------- 1. Ночь 2026 ----------
+  {
+    duration: 3.6, transition: 'fade',
+    subtitle: 'Дима уснул в 2026-м.',
+    voice: 'Дима уснул в две тысячи двадцать шестом.',
+    draw() {
+      return `<rect width="1600" height="900" fill="url(#gRoomNight)"/>
+      ${at(980, 100, NightWindow())}
+      <polygon points="985,445 1400,445 1300,900 640,900" fill="#9fc3ff" opacity=".08" stroke="none"/>
+      ${at(130, 120, Poster2026())}
+      <rect y="720" width="1600" height="180" fill="#0f1a3d"/>
+      <g class="vacuum"><ellipse cx="220" cy="840" rx="60" ry="18" fill="#3a3f5c"/><ellipse cx="220" cy="832" rx="44" ry="10" fill="#4b5276" stroke="none"/><circle cx="220" cy="830" r="5" fill="#5ff2ff" stroke="none" class="blinkFast"/></g>
+      ${SleepingBed()}
+      <g transform="translate(1270,600)"><rect width="150" height="120" rx="10" fill="#3d2f6b"/><rect x="25" y="-50" width="100" height="50" rx="10" fill="#141c3a"/>${T(75, -16, '02:47', 30, '#ff3b6b', { cls: 'blinkFast' })}</g>
+`;
+    }
+  },
+  // ---------- 2. Утро 1996 ----------
+  {
+    duration: 3.2, transition: 'flash',
+    subtitle: 'А проснулся… в 1996-м.',
+    voice: 'А проснулся… в девяносто шестом.',
+    draw() {
+      return `<rect width="1600" height="900" fill="#f7c873"/><rect width="1600" height="720" fill="url(#pStripes)" stroke="none"/>
+      <polygon points="1600,0 1600,420 1000,900 700,900 1250,0" fill="#fff6c8" opacity=".25" stroke="none" class="glow"/>
+      ${at(80, 70, Carpet())}
+      ${at(730, 110, Calendar1996())}
+      <rect y="720" width="1600" height="180" fill="url(#pParquet)"/><path d="M0,720 H1600" stroke-width="8"/>
+      ${StoolTama()}
+      ${TVCabinet()}
+      <g class="shake">${Dima({ x: 930, y: 850, s: 1.05, emotion: 'shock', armL: 'up', armR: 'up' })}</g>
+      ${at(1090, 360, `<g class="pop" ${delay(.6)}>${T(0, 0, '?!', 130, '#ff3b3b', { outline: 10 })}</g>`, 1, 12)}`;
+    }
+  },
+  // ---------- 3. Крупно телефон ----------
+  {
+    duration: 4.6, transition: 'zoom',
+    subtitle: 'Телефон есть. Интернета нет. Паника тоже есть.',
+    voice: 'Телефон есть. Интернета нет. Паника тоже есть.',
+    draw() {
+      const drops = [[-260, -120], [240, -160], [-240, 140], [260, 120], [0, -260]].map(([dx, dy], i) =>
+        `<g class="flyOut" style="--dx:${dx}px;--dy:${dy}px;animation-delay:${i * .25}s"><path d="M0,-18 Q14,4 0,12 Q-14,4 0,-18Z" fill="#8fd8ff" stroke-width="4"/></g>`).join('');
+      return `${ruleBg('#ffb347', '#ff9f2e')}
+      ${Dima({ x: 300, y: 1160, s: 1.9, emotion: 'panic', armL: 'up', armR: 'up', anim: 'shakeSoft' })}
+      <g transform="translate(300,520)">${drops}</g>
+      <g transform="translate(1000,440) rotate(-6)"><g class="vibe">
+        <path d="M-205,-180 l-30,10 M-210,-120 l-40,0 M-205,-60 l-30,-10 M205,-180 l30,10 M210,-120 l40,0 M205,-60 l30,-10" stroke-width="8"/>
+        ${at(0, 0, Phone('nosignal'), 2.7)}</g></g>
+      ${at(1330, 150, `<g class="pop" ${delay(2.8)}>${T(0, 0, 'ПАНИКА!', 70, '#ff3b3b', { outline: 10 })}</g>`, 1, 10)}
+      ${at(620, 220, `<g class="pop" ${delay(1.2)}>${T(0, 0, 'Wi-Fi?..', 54, '#fff', { outline: 8 })}</g>`, 1, -8)}`;
+    }
+  },
+  // ---------- 4. Правило 1 ----------
+  {
+    duration: 3.8, transition: 'slide',
+    subtitle: 'Правило первое: не говорить слова из будущего.',
+    voice: 'Правило первое: не говорить слова из будущего.',
+    draw() {
+      const w = FutureWords(i => [820 + (i % 3) * 230, 470 + Math.floor(i / 3) * 150]);
+      return `${ruleBg('#ff9f43', '#ff8c2a')}${RulePlate(1, ['Не говорить слова', 'из будущего'])}
+      ${Dima({ x: 420, y: 880, s: .95, emotion: 'worried', armR: 'mouth' })}${w}`;
+    }
+  },
+  // ---------- 5. Правило 2 ----------
+  {
+    duration: 4.4, transition: 'slide',
+    subtitle: 'Правило второе: ничего не менять. Даже счёт матча.',
+    voice: 'Правило второе: ничего не менять. Даже счёт матча.',
+    draw() {
+      return `${ruleBg('#f6b93b', '#f0a422')}${RulePlate(2, ['Ничего не менять'], '#7fe3ff')}
+      <rect x="1000" y="780" width="380" height="40" rx="10" fill="#8a4b22"/>
+      ${at(1190, 790, TV('football'), 1.15)}
+      ${at(1190, 680, `<g class="stamp" ${delay(3)}><rect x="-190" y="-50" width="380" height="100" rx="14" fill="none" stroke="#e8112d" stroke-width="10"/>${T(0, 22, 'НЕ ТРОГАТЬ!', 58, '#e8112d')}</g>`)}
+      ${Dima({ x: 470, y: 880, s: .95, emotion: 'nervous', armL: 'up', armR: 'up' })}
+      <g transform="translate(700,470)">${Butterfly()}</g>`;
+    }
+  },
+  // ---------- 6. Правило 3 ----------
+  {
+    duration: 4, transition: 'slide',
+    subtitle: 'Правило третье: никому не говорить, что ты оттуда.',
+    voice: 'Правило третье: никому не говорить, что ты оттуда.',
+    draw() {
+      return `${ruleBg('#e17055', '#d65f45')}${RulePlate(3, ['Никому не говорить,', 'что ты оттуда'], '#b8f28f')}
+      ${Dima({ x: 520, y: 880, s: .95, emotion: 'shh', armR: 'shh' })}
+      ${Bubble(640, 380, 200, 100, ['Тсс!'], { tx: 590, ty: 520, d: .8, size: 52 })}
+      <g transform="translate(250,420)"><g class="pop" ${delay(1.4)}><g class="float">
+        <circle cx="0" cy="0" r="70" fill="#fff" stroke-width="6"/><circle cx="70" cy="80" r="16" fill="#fff" stroke-width="5"/><circle cx="95" cy="115" r="9" fill="#fff" stroke-width="4"/>
+        ${T(0, 16, '2026', 40, '#3b6cff')}<path d="M-50,-40 L50,40" stroke="#ff3b3b" stroke-width="9"/></g></g></g>
+      ${Character(Object.assign({}, KID1, { x: 1130, y: 880, s: .8, emotion: 'neutral', armL: 'hips' }))}
+      ${Character(Object.assign({}, KID2, { x: 1370, y: 880, s: .8, emotion: 'smile' }))}
+      ${[1130, 1370].map((x, i) => at(x, 470, `<g class="pop" ${delay(2 + i * .4)}><g class="float">${T(0, 0, '?', 90, '#fff', { outline: 9 })}</g></g>`)).join('')}`;
+    }
+  },
+  // ---------- 7. Двор панельки, приставка ----------
+  {
+    duration: 4.4, transition: 'fade',
+    subtitle: 'Дима держался отлично. Почти.',
+    voice: 'Дима держался отлично. Почти.',
+    draw() {
+      const by = 760;
+      return `<rect width="1600" height="900" fill="url(#gYard)"/>${Sun(1460, 110, 55)}${Cloud(200, 90, .9)}${Cloud(900, 60, .7, 2)}
+      ${Building({ x: 60, y: 120, w: 1480, h: 520, cols: 14, rows: 5, seed: 3 })}
+      <g transform="translate(760,640)"><rect x="-70" y="-150" width="140" height="150" fill="#7a4a2a"/><rect x="-100" y="-170" width="200" height="24" fill="#b8a07a"/>${T(0, -110, '1–40', 22, '#fff')}</g>
+      <rect y="640" width="1600" height="260" fill="#cbb391"/><rect y="630" width="1600" height="26" fill="#7cc35a"/>
+      ${Tree(170, 700, 1)}
+      <path d="M1290,690 C1330,640 1420,660 1440,560" fill="none" stroke-width="6"/><rect x="1428" y="540" width="26" height="26" rx="4" fill="#fff"/>
+      ${Bench(430, by, 620)}
+      <path d="M520,735 C560,880 1100,880 1230,760 M745,735 C800,870 1100,860 1240,770 M975,745 C1020,840 1150,830 1250,780" fill="none" stroke="#333" stroke-width="5"/>
+      <rect x="1180" y="690" width="200" height="140" rx="6" fill="#c68a4a"/><path d="M1180,735 H1380 M1180,785 H1380" stroke-width="5"/>
+      ${at(1280, 694, TV('game'), .6)}
+      ${Character(Object.assign({}, KID1, { x: 520, y: by + 60 * .78, s: .78, pose: 'sit', emotion: 'smile', armL: 'game', armR: 'game', prop: at(0, -167, Gamepad()) }))}
+      ${Dima({ x: 745, y: by + 54, s: .9, pose: 'sit', emotion: 'chew', emotion2: 'nervous', swapAt: 2.6, armL: 'game', armR: 'game', prop: at(0, -167, Gamepad()) })}
+      ${Character(Object.assign({}, KID2, { x: 975, y: by + 60 * .78, s: .78, pose: 'sit', emotion: 'smile', emotion2: 'shock', swapAt: 3, armL: 'game', armR: 'game', prop: at(0, -167, Gamepad()) }))}
+      ${Bubble(560, 250, 380, 120, ['…это кринж'], { tx: 740, ty: 440, d: 2.3, size: 50 })}
+      ${[520, 975].map((x, i) => at(x, 470, `<g class="pop" ${delay(2.9 + i * .3)}>${T(0, 0, '??', 80, '#ff3b3b', { outline: 8 })}</g>`)).join('')}`;
+    }
+  },
+  // ---------- 8. Киоск ----------
+  {
+    duration: 4.4, transition: 'slide',
+    subtitle: '— Новенький? Не волнуйся. Тут все оттуда.',
+    voice: 'Новенький? Не волнуйся. Тут все оттуда.', pitch: 1.3,
+    draw() {
+      return `<rect width="1600" height="900" fill="url(#gYard)"/>${Cloud(120, 110, .8)}${Cloud(1180, 60, .6, 3)}
+      <g opacity=".55">${Building({ x: 0, y: 180, w: 600, h: 500, cols: 6, rows: 5, seed: 9, color: '#e6c8a0' })}</g>
+      <rect y="700" width="1600" height="200" fill="#cbb391"/>
+      ${at(620, 170, Kiosk())}
+      ${Dima({ x: 330, y: 880, s: 1, emotion: 'shock', emotion2: 'smile', swapAt: 3.3 })}
+      ${Bubble(60, 190, 560, 220, ['Новенький?', 'Не волнуйся.', 'Тут все оттуда.'], { tx: 920, ty: 360, d: .5, size: 48 })}`;
+    }
+  },
+  // ---------- 9. Дед с раскладушкой «2031» и мальчик с тамагочи ----------
+  {
+    duration: 5.2, transition: 'fade',
+    subtitle: 'Оказалось, девяностые — место для тех, кто скучает по простому времени.',
+    voice: 'Оказалось, девяностые — место для тех, кто скучает по простому времени.',
+    draw() {
+      return `<rect width="1600" height="900" fill="url(#gGold)"/>${Sun(1380, 150, 60)}${Cloud(700, 80, .7, 1)}
+      <g opacity=".6">${Building({ x: 950, y: 220, w: 650, h: 440, cols: 6, rows: 4, seed: 5, color: '#f0cfa0' })}</g>
+      <rect y="660" width="1600" height="240" fill="#d4b98f"/><rect y="650" width="1600" height="24" fill="#7cc35a"/>
+      ${Tree(90, 690, .9)}
+      ${Bench(290, 760, 380)}
+      ${Character(Object.assign({}, GRANDPA, { x: 480, y: 820, s: 1, pose: 'sit', emotion: 'smile', emotion2: 'wink', swapAt: 2.2, armR: 'phone', itemR: at(0, -10, FlipPhone('2031'), .9), armL: 'hips' }))}
+      <g class="pop" ${delay(1)}>
+        <path d="M580,330 L522,560 M690,345 L540,575" stroke-width="4" stroke-dasharray="10 8" fill="none"/>
+        <circle cx="660" cy="235" r="115" fill="#fff8e6" stroke-width="8"/>${at(660, 265, FlipPhone('2031'), 1.8)}
+        <circle cx="660" cy="235" r="115" fill="none" stroke="#ffd23f" stroke-width="5"/></g>
+      ${Dima({ x: 870, y: 860, s: .95, emotion: 'shock', emotion2: 'happy', swapAt: 3.6 })}
+      ${Character(Object.assign({}, BOY, { x: 1250, y: 860, s: .72, emotion: 'wink', armR: 'phone', itemR: at(0, -6, Tamagotchi('#9b7bff'), .8) }))}
+      <g class="pop" ${delay(2.4)}><path d="M1300,560 l7,-18 l7,18 l18,7 l-18,7 l-7,18 l-7,-18 l-18,-7Z" fill="#fff36b" class="twinkle"/></g>
+      ${Pigeon(1450, 800, .9)}${Pigeon(1050, 830, .8, .4)}${Bird(800, 120, 1)}${Bird(860, 150, .8, 1)}`;
+    }
+  },
+  // ---------- 10. Финал на закате ----------
+  {
+    duration: 5, transition: 'fade', final: true,
+    subtitle: 'Добро пожаловать. Здесь все новенькие.',
+    voice: 'Добро пожаловать. Здесь все новенькие.',
+    draw() {
+      const crew = [
+        Character(Object.assign({}, KID1, { x: 220, y: 850, s: .7, emotion: 'happy', armR: 'wave', waveDelay: .1 })),
+        Character(Object.assign({}, GRANDPA, { x: 440, y: 850, s: .82, emotion: 'happy', armR: 'wave', waveDelay: .3 })),
+        Character(Object.assign({}, SELLER, { x: 680, y: 850, s: .85, emotion: 'wink', armR: 'wave', armL: 'hips', waveDelay: .5 })),
+        Dima({ x: 920, y: 860, s: .95, emotion: 'happy', armR: 'wave', armL: 'wave', waveDelay: 0 }),
+        Character(Object.assign({}, BOY, { x: 1150, y: 850, s: .7, emotion: 'happy', armR: 'wave', itemL: at(0, 0, Tamagotchi('#9b7bff'), .6), waveDelay: .2 })),
+        Character(Object.assign({}, KID2, { x: 1370, y: 850, s: .72, emotion: 'happy', armR: 'wave', waveDelay: .4 })),
+      ].join('');
+      return `<rect width="1600" height="900" fill="url(#gSunset)"/>${Stars(25, 0, 0, 1600, 200, 21)}
+      ${Sun(800, 600, 210, false)}
+      <g opacity=".95">${Building({ x: 40, y: 300, w: 560, h: 360, cols: 7, rows: 6, seed: 2, color: '#6e3f6a', seam: '#5a3158', win: '#3e2450', lit: .45, balcony: false })}
+      ${Building({ x: 1010, y: 260, w: 560, h: 400, cols: 7, rows: 6, seed: 8, color: '#6e3f6a', seam: '#5a3158', win: '#3e2450', lit: .45, balcony: false })}</g>
+      <rect y="650" width="1600" height="250" fill="#5a2f55"/><rect y="640" width="1600" height="22" fill="#3f8f5a"/>
+      ${Bird(1200, 200, 1.2)}${Bird(1280, 240, 1, .7)}${Bird(1350, 190, .9, 1.4)}
+      ${crew}
+      <g transform="translate(800,250)"><g class="title" ${delay(2.6)}>${T(0, 0, 'КОНЕЦ', 190, '#ffe066', { outline: 14 })}</g></g>`;
+    }
+  },
+];
+
+/* =====================================================================
+   3б. ВЕРТИКАЛЬНЫЕ РАСКЛАДКИ 9:16 (Shorts / Reels / TikTok), viewBox 900×1600.
+   Главное держим в зоне y≈150…1080: снизу и справа платформы рисуют свой интерфейс,
+   субтитры стоят на ~75% высоты. Персонажи и предметы — те же компоненты.
+   ===================================================================== */
+const VERTICAL = [
+  // 1. Ночь 2026
+  () => `<rect width="900" height="1600" fill="url(#gRoomNight)"/>
+    ${at(290, 130, Poster2026())}${at(240, 360, NightWindow())}
+    <polygon points="245,710 655,710 860,1130 40,1130" fill="#9fc3ff" opacity=".07" stroke="none"/>
+    <rect y="1120" width="900" height="480" fill="#0f1a3d"/>
+    <g transform="translate(-30,470)"><g class="vacuum"><ellipse cx="220" cy="840" rx="60" ry="18" fill="#3a3f5c"/><ellipse cx="220" cy="832" rx="44" ry="10" fill="#4b5276" stroke="none"/><circle cx="220" cy="830" r="5" fill="#5ff2ff" stroke="none" class="blinkFast"/></g></g>
+    <g transform="translate(690,740)"><rect width="140" height="56" rx="10" fill="#141c3a"/>${T(70, 40, '02:47', 32, '#ff3b6b', { cls: 'blinkFast' })}</g>
+    <g transform="translate(-125,520) scale(.82)">${SleepingBed()}</g>`,
+  // 2. Утро 1996
+  () => `<rect width="900" height="1600" fill="#f7c873"/><rect width="900" height="1130" fill="url(#pStripes)" stroke="none"/>
+    <polygon points="900,0 900,520 560,1130 380,1130 700,0" fill="#fff6c8" opacity=".25" stroke="none" class="glow"/>
+    ${at(150, 140, Carpet())}${at(60, 610, Calendar1996())}
+    <rect y="1130" width="900" height="470" fill="url(#pParquet)"/><path d="M0,1130 H900" stroke-width="8"/>
+    <g transform="translate(-250,370)">${StoolTama()}</g>
+    <g transform="translate(-242,575) scale(.75)">${TVCabinet()}</g>
+    <g class="shake">${Dima({ x: 420, y: 1130, s: 1.05, emotion: 'shock', armL: 'up', armR: 'up' })}</g>
+    ${at(345, 660, `<g class="pop" ${delay(.6)}>${T(0, 0, '?!', 110, '#ff3b3b', { outline: 10 })}</g>`, 1, 12)}`,
+  // 3. Крупно телефон
+  () => {
+    const drops = [[-230, -110], [220, -150], [-220, 120], [230, 100], [0, -240]].map(([dx, dy], i) =>
+      `<g class="flyOut" style="--dx:${dx}px;--dy:${dy}px;animation-delay:${i * .25}s"><path d="M0,-18 Q14,4 0,12 Q-14,4 0,-18Z" fill="#8fd8ff" stroke-width="4"/></g>`).join('');
+    return `${ruleBg('#ffb347', '#ff9f2e', 900, 1600, 450, 700)}
+    ${Dima({ x: 450, y: 1440, s: 1.5, emotion: 'panic', armL: 'up', armR: 'up', anim: 'shakeSoft' })}
+    <g transform="translate(450,930)">${drops}</g>
+    <g transform="translate(450,470) rotate(-5)"><g class="vibe">
+      <g transform="scale(.78)"><path d="M-205,-180 l-30,10 M-210,-120 l-40,0 M-205,-60 l-30,-10 M205,-180 l30,10 M210,-120 l40,0 M205,-60 l30,-10" stroke-width="10"/></g>
+      ${at(0, 0, Phone('nosignal'), 2.1)}</g></g>
+    ${at(450, 150, `<g class="pop" ${delay(2.8)}>${T(0, 0, 'ПАНИКА!', 92, '#ff3b3b', { outline: 11 })}</g>`, 1, -4)}
+    ${at(200, 790, `<g class="pop" ${delay(1.2)}>${T(0, 0, 'Wi-Fi?..', 50, '#fff', { outline: 8 })}</g>`, 1, -8)}`;
+  },
+  // 4. Правило 1
+  () => `${ruleBg('#ff9f43', '#ff8c2a', 900, 1600, 450, 760)}${RulePlate(1, ['Не говорить слова', 'из будущего'], '#ffe066', { cx: 450, w: 820, size: 50, dy: 110 })}
+    ${Dima({ x: 250, y: 1130, s: 1.05, emotion: 'worried', armR: 'mouth' })}
+    ${FutureWords(i => [585 + (i % 2) * 190, 560 + Math.floor(i / 2) * 145], .92)}`,
+  // 5. Правило 2
+  () => `${ruleBg('#f6b93b', '#f0a422', 900, 1600, 450, 760)}${RulePlate(2, ['Ничего не менять'], '#7fe3ff', { cx: 450, w: 820, size: 56, dy: 110 })}
+    <rect x="470" y="1080" width="380" height="40" rx="10" fill="#8a4b22"/>
+    ${at(650, 1090, TV('football'), .95)}
+    ${at(640, 990, `<g class="stamp" ${delay(3)}><rect x="-190" y="-50" width="380" height="100" rx="14" fill="none" stroke="#e8112d" stroke-width="10"/>${T(0, 22, 'НЕ ТРОГАТЬ!', 58, '#e8112d')}</g>`, .82)}
+    ${Dima({ x: 240, y: 1130, s: .95, emotion: 'nervous', armL: 'up', armR: 'up' })}
+    <g transform="translate(300,560)">${Butterfly()}</g>`,
+  // 6. Правило 3
+  () => `${ruleBg('#e17055', '#d65f45', 900, 1600, 450, 760)}${RulePlate(3, ['Никому не говорить,', 'что ты оттуда'], '#b8f28f', { cx: 450, w: 820, size: 48, dy: 110 })}
+    ${Dima({ x: 300, y: 1130, s: 1, emotion: 'shh', armR: 'shh' })}
+    ${Bubble(410, 560, 200, 100, ['Тсс!'], { tx: 345, ty: 790, d: .8, size: 52 })}
+    <g transform="translate(150,600)"><g class="pop" ${delay(1.4)}><g class="float">
+      <circle cx="0" cy="0" r="70" fill="#fff" stroke-width="6"/><circle cx="62" cy="82" r="15" fill="#fff" stroke-width="5"/><circle cx="88" cy="114" r="9" fill="#fff" stroke-width="4"/>
+      ${T(0, 16, '2026', 40, '#3b6cff')}<path d="M-50,-40 L50,40" stroke="#ff3b3b" stroke-width="9"/></g></g></g>
+    ${Character(Object.assign({}, KID1, { x: 625, y: 1130, s: .7, emotion: 'neutral', armL: 'hips' }))}
+    ${Character(Object.assign({}, KID2, { x: 790, y: 1130, s: .7, emotion: 'smile' }))}
+    ${[625, 790].map((x, i) => at(x, 810, `<g class="pop" ${delay(2 + i * .4)}><g class="float">${T(0, 0, '?', 80, '#fff', { outline: 9 })}</g></g>`)).join('')}`,
+  // 7. Двор, приставка
+  () => {
+    const by = 1010;
+    return `<rect width="900" height="1600" fill="url(#gYard)"/>${Sun(790, 120, 45)}${Cloud(90, 110, .7)}${Cloud(480, 70, .55, 2)}
+    ${Building({ x: 30, y: 200, w: 840, h: 760, cols: 8, rows: 7, seed: 3 })}
+    <rect y="960" width="900" height="640" fill="#cbb391"/><rect y="950" width="900" height="26" fill="#7cc35a"/>
+    ${Tree(80, 1000, .72)}
+    <path d="M810,900 C840,860 860,820 860,760" fill="none" stroke-width="6"/><rect x="847" y="740" width="26" height="26" rx="4" fill="#fff"/>
+    ${Bench(60, by, 540)}
+    <path d="M150,980 C200,1100 600,1110 720,1010 M340,985 C390,1095 620,1095 735,1020 M530,995 C570,1070 660,1070 745,1030" fill="none" stroke="#333" stroke-width="5"/>
+    <rect x="680" y="940" width="170" height="125" rx="6" fill="#c68a4a"/><path d="M680,980 H850 M680,1022 H850" stroke-width="5"/>
+    ${at(765, 944, TV('game'), .5)}
+    ${Character(Object.assign({}, KID1, { x: 150, y: by + 60 * .7, s: .7, pose: 'sit', emotion: 'smile', armL: 'game', armR: 'game', prop: at(0, -167, Gamepad()) }))}
+    ${Dima({ x: 340, y: by + 60 * .82, s: .82, pose: 'sit', emotion: 'chew', emotion2: 'nervous', swapAt: 2.6, armL: 'game', armR: 'game', prop: at(0, -167, Gamepad()) })}
+    ${Character(Object.assign({}, KID2, { x: 530, y: by + 60 * .7, s: .7, pose: 'sit', emotion: 'smile', emotion2: 'shock', swapAt: 3, armL: 'game', armR: 'game', prop: at(0, -167, Gamepad()) }))}
+    ${Bubble(170, 560, 340, 110, ['…это кринж'], { tx: 335, ty: 720, d: 2.3, size: 46 })}
+    ${[150, 530].map((x, i) => at(x, 745, `<g class="pop" ${delay(2.9 + i * .3)}>${T(0, 0, '??', 66, '#ff3b3b', { outline: 8 })}</g>`)).join('')}`;
+  },
+  // 8. Киоск
+  () => `<rect width="900" height="1600" fill="url(#gYard)"/>${Cloud(60, 80, .6)}${Cloud(600, 40, .5, 3)}
+    <rect y="740" width="900" height="860" fill="#cbb391"/>
+    <g transform="translate(70,180) scale(.92)">${Kiosk()}</g>
+    ${Dima({ x: 200, y: 1130, s: 1, emotion: 'shock', emotion2: 'smile', swapAt: 3.3 })}
+    ${Bubble(360, 780, 500, 220, ['Новенький?', 'Не волнуйся.', 'Тут все оттуда.'], { tx: 470, ty: 600, d: .5, size: 44 })}`,
+  // 9. Дед с раскладушкой «2031»
+  () => `<rect width="900" height="1600" fill="url(#gGold)"/>${Sun(790, 130, 45)}${Cloud(80, 90, .55, 1)}
+    <g opacity=".6">${Building({ x: 420, y: 560, w: 480, h: 400, cols: 5, rows: 4, seed: 5, color: '#f0cfa0' })}</g>
+    <rect y="960" width="900" height="640" fill="#d4b98f"/><rect y="950" width="900" height="24" fill="#7cc35a"/>
+    ${Tree(60, 990, .7)}
+    ${Bench(40, 1000, 330)}
+    ${Character(Object.assign({}, GRANDPA, { x: 200, y: 1000 + 60 * .82, s: .82, pose: 'sit', emotion: 'smile', emotion2: 'wink', swapAt: 2.2, armR: 'phone', itemR: at(0, -10, FlipPhone('2031'), .9), armL: 'hips' }))}
+    <g class="pop" ${delay(1)}>
+      <path d="M385,465 L222,858 M480,470 L238,868" stroke-width="4" stroke-dasharray="10 8" fill="none"/>
+      <circle cx="450" cy="330" r="140" fill="#fff8e6" stroke-width="8"/>${at(450, 368, FlipPhone('2031'), 2.15)}
+      <circle cx="450" cy="330" r="140" fill="none" stroke="#ffd23f" stroke-width="5"/></g>
+    ${Dima({ x: 510, y: 1130, s: .9, emotion: 'shock', emotion2: 'happy', swapAt: 3.6 })}
+    ${Character(Object.assign({}, BOY, { x: 760, y: 1130, s: .62, emotion: 'wink', armR: 'phone', itemR: at(0, -6, Tamagotchi('#9b7bff'), .8) }))}
+    <g class="pop" ${delay(2.4)}><path d="M800,860 l7,-18 l7,18 l18,7 l-18,7 l-7,18 l-7,-18 l-18,-7Z" fill="#fff36b" class="twinkle"/></g>
+    ${Pigeon(660, 1250, .8)}${Pigeon(320, 1290, .75, .4)}${Bird(560, 520, 1)}${Bird(620, 560, .8, 1)}`,
+  // 10. Финал
+  () => {
+    const back = [
+      Character(Object.assign({}, GRANDPA, { x: 120, y: 1000, s: .68, emotion: 'happy', armR: 'wave', waveDelay: .3 })),
+      Character(Object.assign({}, SELLER, { x: 330, y: 1000, s: .7, emotion: 'wink', armR: 'wave', armL: 'hips', waveDelay: .5 })),
+      Character(Object.assign({}, KID2, { x: 690, y: 1000, s: .62, emotion: 'happy', armR: 'wave', waveDelay: .4 })),
+    ].join('');
+    const front = [
+      Character(Object.assign({}, KID1, { x: 200, y: 1140, s: .6, emotion: 'happy', armR: 'wave', waveDelay: .1 })),
+      Dima({ x: 520, y: 1140, s: .85, emotion: 'happy', armL: 'wave', waveDelay: 0 }),
+      Character(Object.assign({}, BOY, { x: 790, y: 1140, s: .56, emotion: 'happy', armR: 'wave', itemL: at(0, 0, Tamagotchi('#9b7bff'), .6), waveDelay: .2 })),
+    ].join('');
+    return `<rect width="900" height="1600" fill="url(#gSunset)"/>${Stars(22, 0, 0, 900, 320, 21)}
+    ${Sun(450, 860, 220, false)}
+    <g opacity=".95">${Building({ x: -20, y: 560, w: 300, h: 400, cols: 4, rows: 6, seed: 2, color: '#6e3f6a', seam: '#5a3158', win: '#3e2450', lit: .45, balcony: false })}
+    ${Building({ x: 620, y: 520, w: 300, h: 440, cols: 4, rows: 6, seed: 8, color: '#6e3f6a', seam: '#5a3158', win: '#3e2450', lit: .45, balcony: false })}</g>
+    <rect y="960" width="900" height="640" fill="#5a2f55"/><rect y="950" width="900" height="22" fill="#3f8f5a"/>
+    ${Bird(600, 560, 1.1)}${Bird(680, 600, .9, .7)}${Bird(740, 540, .8, 1.4)}
+    ${back}${front}
+    <g transform="translate(450,400)"><g class="title" ${delay(2.6)}>${T(0, 0, 'КОНЕЦ', 165, '#ffe066', { outline: 14 })}</g></g>`;
+  },
+];
+scenes.forEach((sc, i) => { sc.drawV = VERTICAL[i]; });
+
+/* =====================================================================
+   4. ОЗВУЧКА (Web Speech API)
+   ===================================================================== */
+const params = new URLSearchParams(location.search);
+const SPEED = Math.max(.1, parseFloat(params.get('speed')) || 1);
+const MUTE = params.has('mute') || SPEED !== 1;
+// Формат кадра: 16:9 (по умолчанию) или 9:16 для Shorts / Reels / TikTok (?format=vertical)
+const VERT = params.get('format') === 'vertical';
+const VW = VERT ? 900 : 1600, VH = VERT ? 1600 : 900;
+if (VERT) document.body.classList.add('vert');
+const Speech = {
+  ok: ('speechSynthesis' in window) && !MUTE,
+  voice: null,
+  init() {
+    if (!this.ok) return;
+    const pick = () => {
+      const vs = speechSynthesis.getVoices();
+      this.voice = vs.find(v => /^ru/i.test(v.lang) && /google|milena|yandex|irina/i.test(v.name)) || vs.find(v => /^ru/i.test(v.lang)) || null;
+    };
+    pick();
+    speechSynthesis.addEventListener('voiceschanged', pick);
+  },
+};
+Speech.init();
+// Примерная длительность фразы (запасной вариант, если onend не придёт)
+const estimateMs = (text, rate = 1) => (700 + text.length * 70) / rate;
+
+/* =====================================================================
+   5. ТАЙМЛАЙН (requestAnimationFrame) + переходы + управление
+   ===================================================================== */
+const $ = id => document.getElementById(id);
+const layers = $('layers'), stage = $('stage'), sub = $('subText');
+const VOICE_DELAY = 350;  // мс от начала сцены до начала фразы
+const TAIL = 600;         // пауза после конца фразы перед следующей сценой
+const M = {               // состояние плеера
+  idx: -1, running: false, paused: false, finished: false,
+  t: 0, spoken: false, speechDone: false, speechEndT: 0, hardCap: 0, token: 0,
+  elapsedDone: 0, log: [],
+};
+window.__movie = { M, scenes, jump: i => { restart(i); } };
+
+function wrapSVG(inner) {
+  return `<svg viewBox="0 0 ${VW} ${VH}" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+    <g class="cam" style="transform-origin:${VW / 2}px ${VH / 2}px" stroke="${INK}" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"
+       font-family="'Trebuchet MS','Segoe UI',Verdana,'DejaVu Sans',sans-serif">${inner}</g></svg>`;
+}
+
+/** Показывает сцену i с переходом */
+function startScene(i) {
+  const sc = scenes[i];
+  M.idx = i; M.t = 0; M.spoken = false; M.speechDone = false; M.speechEndT = 0; M.hardCap = 0;
+  M.token++;
+  const tr = sc.transition || 'fade';
+  const kind = tr === 'flash' ? 'fade' : tr;
+  // старые слои уезжают/гаснут и удаляются по окончании своей анимации
+  [...layers.children].forEach(old => {
+    if (old.dataset.leaving) return;
+    old.dataset.leaving = '1';
+    old.className = `layer out-${kind}`;
+    old.addEventListener('animationend', e => { if (e.target === old) old.remove(); });
+  });
+  const el = document.createElement('div');
+  el.className = `layer in-${kind}`;
+  el.innerHTML = wrapSVG(VERT ? sc.drawV() : sc.draw());
+  layers.appendChild(el);
+  if (tr === 'flash') { const f = $('flash'); f.classList.remove('go'); void f.offsetWidth; f.classList.add('go'); }
+  // субтитры
+  sub.classList.remove('show'); sub.textContent = sc.subtitle; sub.classList.toggle('long', sc.subtitle.length > 48); void sub.offsetWidth; sub.classList.add('show');
+  $('counter').textContent = `${i + 1} / ${scenes.length}`;
+  M.log.push({ scene: i + 1, at: Math.round(performance.now()) });
+}
+
+/** Произносит фразу сцены; длительность сцены подстроится под onend */
+function speakScene(sc) {
+  const est = sc.voiceMs || estimateMs(sc.voice, sc.rate || 1);   // voiceMs — точная длина фразы, если известна
+  if (!Speech.ok) { M.speechDone = true; M.speechEndT = M.t + est; return; }
+  const my = M.token, t0 = M.t;
+  try { speechSynthesis.cancel(); } catch (e) { /* ignore */ }
+  const u = new SpeechSynthesisUtterance(sc.voice);
+  u.lang = 'ru-RU';
+  if (Speech.voice) u.voice = Speech.voice;
+  u.rate = sc.rate || 1; u.pitch = sc.pitch || 1;
+  u.onend = () => { if (my !== M.token) return; M.speechDone = true; M.speechEndT = M.t; };
+  u.onerror = () => { if (my !== M.token) return; M.speechDone = true; M.speechEndT = Math.max(M.t, t0 + est); };
+  M.hardCap = t0 + est * 1.8 + 2500;     // страховка, если onend так и не придёт
+  window.__utt = u;                       // держим ссылку (иначе Chrome может «потерять» onend)
+  speechSynthesis.speak(u);
+}
+
+function finish() {
+  M.running = false; M.finished = true;
+  $('btnStart').textContent = '▶ Ещё раз'; $('btnStart').disabled = false;
+  $('btnPause').disabled = true;
+  M.log.push({ finished: true, at: Math.round(performance.now()) });
+}
+
+let last = 0;
+function tick(now) {
+  const dt = last ? Math.min(100, now - last) : 0; last = now;
+  if (M.running && !M.paused) {
+    M.t += dt * SPEED;
+    const sc = scenes[M.idx];
+    if (!M.spoken && M.t >= VOICE_DELAY) { M.spoken = true; speakScene(sc); }
+    const minD = sc.duration * 1000;
+    const end = M.speechDone ? Math.max(minD, M.speechEndT + TAIL) : Math.max(minD, M.hardCap || Infinity);
+    if (M.spoken && M.t >= end) {
+      M.elapsedDone += M.t;
+      if (M.idx + 1 < scenes.length) startScene(M.idx + 1); else finish();
+    }
+  }
+  // прогресс-бар
+  const total = scenes.reduce((a, s) => a + s.duration * 1000, 0);
+  const cur = M.finished ? total : Math.min(total, M.elapsedDone + (M.running ? M.t : 0));
+  $('bar').style.width = `${(cur / total * 100).toFixed(2)}%`;
+  requestAnimationFrame(tick);
+}
+
+function restart(from = 0) {
+  try { speechSynthesis.cancel(); } catch (e) { /* ignore */ }
+  layers.innerHTML = '';
+  $('intro').classList.add('hide');
+  M.running = true; M.paused = false; M.finished = false; M.elapsedDone = 0;
+  stage.classList.remove('paused');
+  scenes.slice(0, from).forEach(s => { M.elapsedDone += s.duration * 1000; });
+  $('btnStart').textContent = '▶ Старт'; $('btnStart').disabled = true;
+  $('btnPause').disabled = false; $('btnPause').textContent = '⏸ Пауза';
+  $('btnRestart').disabled = false;
+  startScene(Math.max(0, Math.min(scenes.length - 1, from)));
+}
+function togglePause() {
+  if (!M.running) return;
+  M.paused = !M.paused;
+  stage.classList.toggle('paused', M.paused);
+  $('btnPause').textContent = M.paused ? '▶ Продолжить' : '⏸ Пауза';
+  if (Speech.ok) { try { M.paused ? speechSynthesis.pause() : speechSynthesis.resume(); } catch (e) { /* ignore */ } }
+}
+
+// Кнопки
+$('btnStart').onclick = $('bigStart').onclick = () => { if (!M.running) restart(0); };
+$('btnPause').onclick = togglePause;
+$('btnRestart').onclick = () => restart(0);
+document.addEventListener('keydown', e => { if (e.code === 'Space') { e.preventDefault(); M.running ? togglePause() : restart(0); } });
+
+// Метки сцен на прогресс-баре
+(() => {
+  const total = scenes.reduce((a, s) => a + s.duration, 0); let acc = 0;
+  scenes.slice(0, -1).forEach(s => { acc += s.duration; const t = document.createElement('div'); t.className = 'tick'; t.style.left = `${acc / total * 100}%`; $('progress').appendChild(t); });
+})();
+// Портрет Димы на заставке (тот же компонент Head)
+$('introArt').innerHTML = `<g stroke="${INK}" stroke-width="6" stroke-linejoin="round" stroke-linecap="round">${Head(Object.assign({}, CHAR_DEFAULTS, { emotion: 'wink' }))}</g>`;
+
+requestAnimationFrame(tick);
+if (params.get('scene')) restart(parseInt(params.get('scene'), 10) - 1);
+</script>
+</body>
+</html>
