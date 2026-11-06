@@ -29,8 +29,8 @@ const dur = f => parseFloat(execFileSync('ffprobe', ['-v', 'error', '-show_entri
     execFileSync('ffmpeg', ['-y', '-v', 'error', '-i', raw, '-af', af, '-ar', '44100', '-ac', '1', f]);
     return { f, ms: dur(f) * 1000 };
   });
-  // длительность сцены = max(исходной, 0.35с + фраза + 0.7с)
-  const durations = sc.map((s, i) => Math.max(s.duration, (350 + audio[i].ms + 700) / 1000));
+  // длительность сцены = max(минимальной, 0.35с + фраза + 0.6с)
+  const durations = sc.map((s, i) => Math.max(s.duration, (350 + audio[i].ms + 600) / 1000));
   // 2) запись видео
   const ctx = await b.newContext({ viewport: { width: 1280, height: 720 }, recordVideo: { dir: V, size: { width: 1280, height: 720 } } });
   const p = await ctx.newPage();
@@ -38,7 +38,7 @@ const dur = f => parseFloat(execFileSync('ffprobe', ['-v', 'error', '-show_entri
   const errs = []; p.on('pageerror', e => errs.push(e.message));
   await p.goto('file:///home/user/video/index.html?mute=1');
   await p.addStyleTag({ content: '#app{padding:0!important;gap:0!important} #controls{display:none!important} #stage{width:100vw!important;height:100vh!important;border:0!important;border-radius:0!important;box-shadow:none!important}' });
-  await p.evaluate(d => d.forEach((x, i) => { window.__movie.scenes[i].duration = x; }), durations);
+  await p.evaluate(([d, ms]) => d.forEach((x, i) => { window.__movie.scenes[i].duration = x; window.__movie.scenes[i].voiceMs = ms[i]; }), [durations, audio.map(a => a.ms)]);
   await p.waitForTimeout(800);
   const clickEpoch = await p.evaluate(() => { document.getElementById('bigStart').click(); return performance.timeOrigin + performance.now(); });
   await p.waitForFunction(() => window.__movie.M.finished, null, { timeout: 180000, polling: 200 });

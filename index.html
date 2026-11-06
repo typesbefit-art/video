@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Тут все оттуда</title>
 <!--
-  «Тут все оттуда» — мультфильм ~60 секунд в одном HTML-файле.
+  «Тут все оттуда» — мультфильм ~45 секунд в одном HTML-файле.
   Всё нарисовано в SVG, анимировано CSS keyframes + requestAnimationFrame (таймлайн).
   Озвучка: Web Speech API (speechSynthesis, ru-RU).
 
@@ -195,7 +195,7 @@
     <div id="intro">
       <svg id="introArt" viewBox="-110 -130 220 220"></svg>
       <h1>ТУТ ВСЕ ОТТУДА</h1>
-      <p>мультфильм · ~60 секунд · включите звук 🔊</p>
+      <p>мультфильм · ~45 секунд · включите звук 🔊</p>
       <button id="bigStart">▶ Старт</button>
     </div>
   </div>
@@ -625,7 +625,7 @@ function ruleBg(col1, col2) {
 const scenes = [
   // ---------- 1. Ночь 2026 ----------
   {
-    duration: 6, transition: 'fade',
+    duration: 3.6, transition: 'fade',
     subtitle: 'Дима уснул в 2026-м.',
     voice: 'Дима уснул в две тысячи двадцать шестом.',
     draw() {
@@ -662,7 +662,7 @@ const scenes = [
   },
   // ---------- 2. Утро 1996 ----------
   {
-    duration: 5.5, transition: 'flash',
+    duration: 3.2, transition: 'flash',
     subtitle: 'А проснулся… в 1996-м.',
     voice: 'А проснулся… в девяносто шестом.',
     draw() {
@@ -691,7 +691,7 @@ const scenes = [
   },
   // ---------- 3. Крупно телефон ----------
   {
-    duration: 6.5, transition: 'zoom',
+    duration: 4.6, transition: 'zoom',
     subtitle: 'Телефон есть. Интернета нет. Паника тоже есть.',
     voice: 'Телефон есть. Интернета нет. Паника тоже есть.',
     draw() {
@@ -703,13 +703,13 @@ const scenes = [
       <g transform="translate(1000,440) rotate(-6)"><g class="vibe">
         <path d="M-205,-180 l-30,10 M-210,-120 l-40,0 M-205,-60 l-30,-10 M205,-180 l30,10 M210,-120 l40,0 M205,-60 l30,-10" stroke-width="8"/>
         ${at(0, 0, Phone('nosignal'), 2.7)}</g></g>
-      ${at(1330, 150, `<g class="pop" ${delay(3.4)}>${T(0, 0, 'ПАНИКА!', 70, '#ff3b3b', { outline: 10 })}</g>`, 1, 10)}
+      ${at(1330, 150, `<g class="pop" ${delay(2.8)}>${T(0, 0, 'ПАНИКА!', 70, '#ff3b3b', { outline: 10 })}</g>`, 1, 10)}
       ${at(620, 220, `<g class="pop" ${delay(1.2)}>${T(0, 0, 'Wi-Fi?..', 54, '#fff', { outline: 8 })}</g>`, 1, -8)}`;
     }
   },
   // ---------- 4. Правило 1 ----------
   {
-    duration: 5.5, transition: 'slide',
+    duration: 3.8, transition: 'slide',
     subtitle: 'Правило первое: не говорить слова из будущего.',
     voice: 'Правило первое: не говорить слова из будущего.',
     draw() {
@@ -726,7 +726,7 @@ const scenes = [
   },
   // ---------- 5. Правило 2 ----------
   {
-    duration: 6.5, transition: 'slide',
+    duration: 4.4, transition: 'slide',
     subtitle: 'Правило второе: ничего не менять. Даже счёт матча.',
     voice: 'Правило второе: ничего не менять. Даже счёт матча.',
     draw() {
@@ -740,7 +740,7 @@ const scenes = [
   },
   // ---------- 6. Правило 3 ----------
   {
-    duration: 6, transition: 'slide',
+    duration: 4, transition: 'slide',
     subtitle: 'Правило третье: никому не говорить, что ты оттуда.',
     voice: 'Правило третье: никому не говорить, что ты оттуда.',
     draw() {
@@ -757,7 +757,7 @@ const scenes = [
   },
   // ---------- 7. Двор панельки, приставка ----------
   {
-    duration: 6, transition: 'fade',
+    duration: 4.4, transition: 'fade',
     subtitle: 'Дима держался отлично. Почти.',
     voice: 'Дима держался отлично. Почти.',
     draw() {
@@ -773,15 +773,15 @@ const scenes = [
       <rect x="1180" y="690" width="200" height="140" rx="6" fill="#c68a4a"/><path d="M1180,735 H1380 M1180,785 H1380" stroke-width="5"/>
       ${at(1280, 694, TV('game'), .6)}
       ${Character(Object.assign({}, KID1, { x: 520, y: by + 60 * .78, s: .78, pose: 'sit', emotion: 'smile', armL: 'game', armR: 'game', prop: at(0, -167, Gamepad()) }))}
-      ${Dima({ x: 745, y: by + 54, s: .9, pose: 'sit', emotion: 'chew', emotion2: 'nervous', swapAt: 3.1, armL: 'game', armR: 'game', prop: at(0, -167, Gamepad()) })}
-      ${Character(Object.assign({}, KID2, { x: 975, y: by + 60 * .78, s: .78, pose: 'sit', emotion: 'smile', emotion2: 'shock', swapAt: 3.6, armL: 'game', armR: 'game', prop: at(0, -167, Gamepad()) }))}
-      ${Bubble(560, 250, 380, 120, ['…это кринж'], { tx: 740, ty: 440, d: 2.8, size: 50 })}
-      ${[520, 975].map((x, i) => at(x, 470, `<g class="pop" ${delay(3.4 + i * .3)}>${T(0, 0, '??', 80, '#ff3b3b', { outline: 8 })}</g>`)).join('')}`;
+      ${Dima({ x: 745, y: by + 54, s: .9, pose: 'sit', emotion: 'chew', emotion2: 'nervous', swapAt: 2.6, armL: 'game', armR: 'game', prop: at(0, -167, Gamepad()) })}
+      ${Character(Object.assign({}, KID2, { x: 975, y: by + 60 * .78, s: .78, pose: 'sit', emotion: 'smile', emotion2: 'shock', swapAt: 3, armL: 'game', armR: 'game', prop: at(0, -167, Gamepad()) }))}
+      ${Bubble(560, 250, 380, 120, ['…это кринж'], { tx: 740, ty: 440, d: 2.3, size: 50 })}
+      ${[520, 975].map((x, i) => at(x, 470, `<g class="pop" ${delay(2.9 + i * .3)}>${T(0, 0, '??', 80, '#ff3b3b', { outline: 8 })}</g>`)).join('')}`;
     }
   },
   // ---------- 8. Киоск ----------
   {
-    duration: 6, transition: 'slide',
+    duration: 4.4, transition: 'slide',
     subtitle: '— Новенький? Не волнуйся. Тут все оттуда.',
     voice: 'Новенький? Не волнуйся. Тут все оттуда.', pitch: 1.3,
     draw() {
@@ -809,13 +809,13 @@ const scenes = [
         <rect x="-30" y="-10" width="880" height="80" rx="10" fill="#e74c3c"/>${T(410, 50, 'ПРОДУКТЫ', 58, '#fff', { outline: 6 })}
         <g transform="translate(830,10)"><g class="swing"><circle r="50" fill="#ffd23f" stroke-width="6"/>${T(0, 2, '24', 36, INK)}${T(0, 26, 'ЧАСА', 16, INK)}</g></g>
       </g>
-      ${Dima({ x: 330, y: 880, s: 1, emotion: 'shock', emotion2: 'smile', swapAt: 4.3 })}
+      ${Dima({ x: 330, y: 880, s: 1, emotion: 'shock', emotion2: 'smile', swapAt: 3.3 })}
       ${Bubble(60, 190, 560, 220, ['Новенький?', 'Не волнуйся.', 'Тут все оттуда.'], { tx: 920, ty: 360, d: .5, size: 48 })}`;
     }
   },
   // ---------- 9. Дед с раскладушкой «2031» и мальчик с тамагочи ----------
   {
-    duration: 7.5, transition: 'fade',
+    duration: 5.2, transition: 'fade',
     subtitle: 'Оказалось, девяностые — место для тех, кто скучает по простому времени.',
     voice: 'Оказалось, девяностые — место для тех, кто скучает по простому времени.',
     draw() {
@@ -829,7 +829,7 @@ const scenes = [
         <path d="M580,330 L522,560 M690,345 L540,575" stroke-width="4" stroke-dasharray="10 8" fill="none"/>
         <circle cx="660" cy="235" r="115" fill="#fff8e6" stroke-width="8"/>${at(660, 265, FlipPhone('2031'), 1.8)}
         <circle cx="660" cy="235" r="115" fill="none" stroke="#ffd23f" stroke-width="5"/></g>
-      ${Dima({ x: 870, y: 860, s: .95, emotion: 'shock', emotion2: 'happy', swapAt: 4.3 })}
+      ${Dima({ x: 870, y: 860, s: .95, emotion: 'shock', emotion2: 'happy', swapAt: 3.6 })}
       ${Character(Object.assign({}, BOY, { x: 1250, y: 860, s: .72, emotion: 'wink', armR: 'phone', itemR: at(0, -6, Tamagotchi('#9b7bff'), .8) }))}
       <g class="pop" ${delay(2.4)}><path d="M1300,560 l7,-18 l7,18 l18,7 l-18,7 l-7,18 l-7,-18 l-18,-7Z" fill="#fff36b" class="twinkle"/></g>
       ${Pigeon(1450, 800, .9)}${Pigeon(1050, 830, .8, .4)}${Bird(800, 120, 1)}${Bird(860, 150, .8, 1)}`;
@@ -837,7 +837,7 @@ const scenes = [
   },
   // ---------- 10. Финал на закате ----------
   {
-    duration: 7, transition: 'fade', final: true,
+    duration: 5, transition: 'fade', final: true,
     subtitle: 'Добро пожаловать. Здесь все новенькие.',
     voice: 'Добро пожаловать. Здесь все новенькие.',
     draw() {
@@ -856,7 +856,7 @@ const scenes = [
       <rect y="650" width="1600" height="250" fill="#5a2f55"/><rect y="640" width="1600" height="22" fill="#3f8f5a"/>
       ${Bird(1200, 200, 1.2)}${Bird(1280, 240, 1, .7)}${Bird(1350, 190, .9, 1.4)}
       ${crew}
-      <g transform="translate(800,250)"><g class="title" ${delay(3.4)}>${T(0, 0, 'КОНЕЦ', 190, '#ffe066', { outline: 14 })}</g></g>`;
+      <g transform="translate(800,250)"><g class="title" ${delay(2.6)}>${T(0, 0, 'КОНЕЦ', 190, '#ffe066', { outline: 14 })}</g></g>`;
     }
   },
 ];
@@ -890,7 +890,7 @@ const estimateMs = (text, rate = 1) => (700 + text.length * 70) / rate;
 const $ = id => document.getElementById(id);
 const layers = $('layers'), stage = $('stage'), sub = $('subText');
 const VOICE_DELAY = 350;  // мс от начала сцены до начала фразы
-const TAIL = 700;         // пауза после конца фразы перед следующей сценой
+const TAIL = 600;         // пауза после конца фразы перед следующей сценой
 const M = {               // состояние плеера
   idx: -1, running: false, paused: false, finished: false,
   t: 0, spoken: false, speechDone: false, speechEndT: 0, hardCap: 0, token: 0,
@@ -931,7 +931,7 @@ function startScene(i) {
 
 /** Произносит фразу сцены; длительность сцены подстроится под onend */
 function speakScene(sc) {
-  const est = estimateMs(sc.voice, sc.rate || 1);
+  const est = sc.voiceMs || estimateMs(sc.voice, sc.rate || 1);   // voiceMs — точная длина фразы, если известна
   if (!Speech.ok) { M.speechDone = true; M.speechEndT = M.t + est; return; }
   const my = M.token, t0 = M.t;
   try { speechSynthesis.cancel(); } catch (e) { /* ignore */ }
