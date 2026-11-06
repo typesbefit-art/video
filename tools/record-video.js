@@ -1,4 +1,4 @@
-// Запись мультфильма в видео: espeak-ng озвучка + Playwright-видео + ffmpeg-сведение
+// Запись мультфильма в видео: озвучка Piper/espeak-ng + Playwright-видео + ffmpeg-сведение
 const { chromium } = require('playwright');
 const { execFileSync } = require('child_process');
 const fs = require('fs');
@@ -13,10 +13,16 @@ const dur = f => parseFloat(execFileSync('ffprobe', ['-v', 'error', '-show_entri
   await p0.goto('file:///home/user/video/index.html?mute=1');
   const sc = await p0.evaluate(() => window.__movie.scenes.map(s => ({ voice: s.voice, pitch: s.pitch || 1, duration: s.duration })));
   await p0.close();
+  // Голос: нейронный Piper (если задан PIPER_MODEL=путь/к/модели.onnx), иначе espeak-ng
+  const PIPER = process.env.PIPER_MODEL;
   const audio = sc.map((s, i) => {
-    const f = `${A}/v${i + 1}.wav`;
-    const female = s.pitch > 1;
-    execFileSync('espeak-ng', ['-v', female ? 'ru+f3' : 'ru+m3', '-s', '145', '-p', female ? '70' : '45', '-w', f, s.voice]);
+    const f = `${A}/v${i + 1}.wav`, raw = `${A}/raw${i + 1}.wav`;
+    const high = s.pitch > 1;                 // реплика продавщицы — чуть выше тоном
+    if (PIPER) execFileSync('python3', ['-m', 'piper', '-m', PIPER, '-f', raw, '--length-scale', '1.05', '--sentence-silence', '0.25'], { input: s.voice });
+    else execFileSync('espeak-ng', ['-v', high ? 'ru+f3' : 'ru+m3', '-s', '145', '-p', high ? '70' : '45', '-w', raw, s.voice]);
+    const af = (PIPER && high ? 'asetrate=22050*1.12,aresample=44100,atempo=0.893,' : 'aresample=44100,') +
+      'highpass=f=80,acompressor=threshold=-18dB:ratio=3:attack=5:release=120,loudnorm=I=-16:TP=-1.5:LRA=7';
+    execFileSync('ffmpeg', ['-y', '-v', 'error', '-i', raw, '-af', af, '-ar', '44100', '-ac', '1', f]);
     return { f, ms: dur(f) * 1000 };
   });
   // длительность сцены = max(исходной, 0.35с + фраза + 0.7с)
@@ -47,7 +53,7 @@ const dur = f => parseFloat(execFileSync('ffprobe', ['-v', 'error', '-show_entri
   const fl = audio.map((a, i) => `[${i + 1}:a]adelay=${starts[i]}|${starts[i]}[a${i}]`).join(';') +
     ';' + audio.map((_, i) => `[a${i}]`).join('') + `amix=inputs=${audio.length}:normalize=0,apad[aout]`;
   args.push('-filter_complex', fl, '-map', '0:v', '-map', '[aout]', '-t', total.toFixed(2),
-    '-c:v', 'libx264', '-preset', 'slow', '-crf', '18', '-pix_fmt', 'yuv420p', '-r', '25', '-c:a', 'aac', '-b:a', '160k', '-movflags', '+faststart', OUT);
+    '-c:v', 'libx264', '-preset', 'slow', '-crf', '18', '-pix_fmt', 'yuv420p', '-r', '25', '-c:a', 'aac', '-b:a', '160k', '-ac', '2', '-movflags', '+faststart', OUT);
   execFileSync('ffmpeg', args);
   console.log('scene starts (s):', starts.map(s => (s / 1000).toFixed(1)).join(' '));
   console.log('voice lengths (s):', audio.map(a => (a.ms / 1000).toFixed(1)).join(' '));

@@ -8,12 +8,12 @@
 
 ## Видео
 
-Готовая запись лежит в `tut-vse-ottuda.mp4`: 1280×720, 25 кадров/с, озвучка синтезатором espeak-ng.
+Готовая запись лежит в `tut-vse-ottuda.mp4`: 1280×720, 25 кадров/с, озвучка нейронным синтезатором Piper (русский голос ru-irinia-medium).
 
-Как пересобрать (нужны Playwright с Chromium, ffmpeg и espeak-ng):
+Как пересобрать (нужны Playwright с Chromium, ffmpeg и `pip install piper-tts`; голос берётся из релиза [rhasspy/piper v0.0.2](https://github.com/rhasspy/piper/releases/tag/v0.0.2), архив `voice-ru-irinia-medium.tar.gz`):
 
 ```
-node tools/record-video.js /tmp/rec tut-vse-ottuda.mp4
+PIPER_MODEL=путь/к/ru-irinia-medium.onnx node tools/record-video.js /tmp/rec tut-vse-ottuda.mp4
 ```
 
-Скрипт берёт фразы из массива `scenes`, озвучивает их через espeak-ng, записывает мультфильм из браузера и сводит видео со звуком через ffmpeg.
+Без `PIPER_MODEL` скрипт озвучивает через espeak-ng. Он берёт фразы из массива `scenes`, синтезирует их, записывает мультфильм из браузера и сводит видео со звуком через ffmpeg.
