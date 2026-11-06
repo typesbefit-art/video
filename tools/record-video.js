@@ -13,14 +13,18 @@ const dur = f => parseFloat(execFileSync('ffprobe', ['-v', 'error', '-show_entri
   await p0.goto('file:///home/user/video/index.html?mute=1');
   const sc = await p0.evaluate(() => window.__movie.scenes.map(s => ({ voice: s.voice, pitch: s.pitch || 1, duration: s.duration })));
   await p0.close();
-  // Голос: нейронный Piper (если задан PIPER_MODEL=путь/к/модели.onnx), иначе espeak-ng
-  const PIPER = process.env.PIPER_MODEL;
+  // Голоса: нейронный Piper. PIPER_MODEL — рассказчик, PIPER_MODEL_ALT — реплики с pitch>1 (продавщица).
+  // Без PIPER_MODEL используется espeak-ng.
+  const PIPER = process.env.PIPER_MODEL, ALT = process.env.PIPER_MODEL_ALT || PIPER;
   const audio = sc.map((s, i) => {
     const f = `${A}/v${i + 1}.wav`, raw = `${A}/raw${i + 1}.wav`;
-    const high = s.pitch > 1;                 // реплика продавщицы — чуть выше тоном
-    if (PIPER) execFileSync('python3', ['-m', 'piper', '-m', PIPER, '-f', raw, '--length-scale', '1.05', '--sentence-silence', '0.25'], { input: s.voice });
+    const high = s.pitch > 1;
+    if (PIPER) execFileSync('python3', ['-m', 'piper', '-m', high ? ALT : PIPER, '-f', raw, '--sentence-silence', '0.2'], { input: s.voice });
     else execFileSync('espeak-ng', ['-v', high ? 'ru+f3' : 'ru+m3', '-s', '145', '-p', high ? '70' : '45', '-w', raw, s.voice]);
-    const af = (PIPER && high ? 'asetrate=22050*1.12,aresample=44100,atempo=0.893,' : 'aresample=44100,') +
+    const sr = parseInt(execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'stream=sample_rate', '-of', 'csv=p=0', raw]).toString(), 10);
+    // продавщица: тон выше на 8% и темп быстрее на 12%
+    const af = (PIPER && high ? `asetrate=${sr}*1.08,aresample=44100,atempo=${(1.12 / 1.08).toFixed(3)},` : 'aresample=44100,') +
+      'silenceremove=start_periods=1:start_threshold=-45dB,areverse,silenceremove=start_periods=1:start_threshold=-45dB,areverse,' +
       'highpass=f=80,acompressor=threshold=-18dB:ratio=3:attack=5:release=120,loudnorm=I=-16:TP=-1.5:LRA=7';
     execFileSync('ffmpeg', ['-y', '-v', 'error', '-i', raw, '-af', af, '-ar', '44100', '-ac', '1', f]);
     return { f, ms: dur(f) * 1000 };
