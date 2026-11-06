@@ -4,11 +4,14 @@
 
 Откройте `index.html` в браузере (лучше Chrome или Edge с русским голосом) и нажмите «▶ Старт». Пауза ставится кнопкой или пробелом.
 
-Параметры для отладки: `?mute=1` (без звука), `?speed=6` (ускорение, звук выключается), `?scene=5` (начать с 5-й сцены).
+Параметры для отладки: `?mute=1` (без звука), `?speed=6` (ускорение, звук выключается), `?scene=5` (начать с 5-й сцены), `?format=vertical` (вертикальный кадр 9:16).
 
 ## Видео
 
-Готовая запись лежит в `tut-vse-ottuda.mp4`: 1280×720, 25 кадров/с. Озвучка сделана нейронным синтезатором Piper: рассказчик говорит голосом `ru_RU-ruslan-medium`, продавщица — голосом `ru-irinia-medium` с чуть поднятым тоном.
+- `tut-vse-ottuda.mp4` — горизонтальная версия: 1280×720, 25 кадров/с.
+- `tut-vse-ottuda-vertical.mp4` — для Shorts, Reels и TikTok: 1080×1920 (9:16), 30 кадров/с. Сцены разложены заново под вертикальный экран, главное не заходит под кнопки и подписи платформ.
+
+Озвучка сделана нейронным синтезатором Piper: рассказчик говорит голосом `ru_RU-ruslan-medium`, продавщица — голосом `ru-irinia-medium` с чуть поднятым тоном.
 
 Как пересобрать. Нужны Playwright с Chromium, ffmpeg и `pip install piper-tts`. Голоса берутся из релизов на GitHub: [k2-fsa/sherpa-onnx, tts-models](https://github.com/k2-fsa/sherpa-onnx/releases/tag/tts-models) (`vits-piper-ru_RU-ruslan-medium.tar.bz2`, там же dmitri и denis) и [rhasspy/piper v0.0.2](https://github.com/rhasspy/piper/releases/tag/v0.0.2) (`voice-ru-irinia-medium.tar.gz`).
 
@@ -17,5 +20,7 @@ PIPER_MODEL=путь/к/ru_RU-ruslan-medium.onnx \
 PIPER_MODEL_ALT=путь/к/ru-irinia-medium.onnx \
 node tools/record-video.js /tmp/rec tut-vse-ottuda.mp4
 ```
+
+Для вертикальной версии добавьте `FORMAT=vertical` и укажите файл `tut-vse-ottuda-vertical.mp4`.
 
 Без `PIPER_MODEL` скрипт озвучивает через espeak-ng. Он берёт фразы из массива `scenes`, синтезирует их, записывает мультфильм из браузера и сводит видео со звуком через ffmpeg.

@@ -13,6 +13,7 @@
     ?mute=1    — без озвучки (длительность считается по длине фразы)
     ?speed=8   — ускорить таймлайн в N раз (озвучка отключается)
     ?scene=5   — сразу начать с указанной сцены (1..10)
+    ?format=vertical — вертикальный кадр 9:16 для Shorts / Reels / TikTok
 -->
 <style>
   :root{ --ink:#1b1530; --ui:#ffd23f; }
@@ -79,6 +80,15 @@
   #bar{ position:absolute; left:0; top:0; bottom:0; width:0; background:linear-gradient(90deg,#3b6cff,#ffd23f,#ff7e5f); }
   .tick{ position:absolute; top:0; bottom:0; width:2px; background:rgba(0,0,0,.55); }
   #counter{ min-width:64px; text-align:right; font-weight:800; opacity:.85; }
+
+  /* Вертикальный формат 9:16 */
+  body.vert #stage, body.vert #controls{ width:min(96vw, calc((100vh - 96px) * 9 / 16)); }
+  body.vert #stage{ aspect-ratio:9/16; }
+  body.vert #subs{ bottom:25%; }
+  body.vert #subText{ max-width:86%; font-size:4.6cqw; }
+  body.vert #subText.long{ font-size:4.1cqw; }
+  body.vert #intro h1{ font-size:11cqw; } body.vert #intro p{ font-size:3.8cqw; }
+  body.vert #intro svg{ width:38cqw; height:38cqw; } body.vert #bigStart{ font-size:5.5cqw; }
 
   /* ПАУЗА: замораживаем все CSS-анимации внутри сцены */
   #stage.paused *, #stage.paused{ animation-play-state:paused !important; }
@@ -602,21 +612,108 @@ const Pigeon = (x, y, s = 1, d = 0) => `<g transform="translate(${x},${y}) scale
 const Butterfly = () => `<g class="flyPath"><g class="flap"><ellipse cx="-14" cy="-6" rx="16" ry="20" fill="#ff7eb6"/><ellipse cx="14" cy="-6" rx="16" ry="20" fill="#ff7eb6"/>
   <ellipse cx="-10" cy="14" rx="10" ry="12" fill="#ffd23f"/><ellipse cx="10" cy="14" rx="10" ry="12" fill="#ffd23f"/></g><rect x="-3" y="-20" width="6" height="40" rx="3" fill="${INK}" stroke="none"/></g>`;
 
+/* ---- Крупные части сцен (используются и в 16:9, и в 9:16) ---- */
+/** Ночное окно 2026 с луной и неоновым городом (локально 420×330) */
+const NightWindow = () => `        <rect x="0" y="0" width="420" height="330" rx="12" fill="url(#gNight)" stroke-width="10"/>
+        ${Stars(18, 10, 10, 400, 180, 7)}
+        <circle cx="320" cy="80" r="70" fill="url(#rWarm)" stroke="none" opacity=".5"/><circle cx="320" cy="80" r="40" fill="#fff6c9"/><circle cx="308" cy="70" r="7" fill="#efe3a8" stroke="none"/><circle cx="330" cy="92" r="5" fill="#efe3a8" stroke="none"/>
+        <g fill="#0b1636" stroke="none"><rect x="10" y="200" width="60" height="125"/><rect x="75" y="160" width="45" height="165"/><rect x="125" y="215" width="70" height="110"/><rect x="200" y="140" width="40" height="185"/><rect x="250" y="190" width="80" height="135"/><rect x="335" y="225" width="75" height="100"/></g>
+        <rect x="218" y="128" width="4" height="12" fill="#0b1636" stroke="none"/><circle cx="220" cy="126" r="5" fill="#ff3b6b" stroke="none" class="blinkFast"/>
+        ${[[20, 215], [40, 240], [85, 180], [95, 230], [140, 235], [165, 260], [210, 160], [210, 200], [265, 210], [295, 240], [350, 245], [380, 270]].map(([a, b], i) => `<rect x="${a}" y="${b}" width="10" height="8" fill="${i % 3 ? '#5ff2ff' : '#ffd66b'}" stroke="none" class="twinkle" ${delay(i * .3)}/>`).join('')}
+        <rect x="205" y="0" width="10" height="330" fill="#2c4a8a" stroke="none"/><rect x="0" y="160" width="420" height="10" fill="#2c4a8a" stroke="none"/>
+        <rect x="-15" y="325" width="450" height="22" rx="6" fill="#2c4a8a"/>
+`;
+/** Неоновая табличка «2026» (локально 320×170) */
+const Poster2026 = () => `<rect width="320" height="170" rx="18" fill="#0d1838" stroke="#5ff2ff" stroke-width="6" class="glow"/>
+        ${T(160, 110, '2026', 96, '#5ff2ff', { cls: 'glow' })}${T(160, 150, 'NEO-ГОД', 22, '#ff7eb6')}`;
+/** Кровать со спящим Димой, одеялом и светящимся телефоном (координаты сцены 1600×900) */
+const SleepingBed = () => `      <rect x="200" y="380" width="70" height="350" rx="20" fill="#4a3a80"/>
+      <rect x="230" y="560" width="1010" height="150" rx="20" fill="#3d2f6b"/><rect x="250" y="700" width="30" height="40" fill="#2b2050"/><rect x="1190" y="700" width="30" height="40" fill="#2b2050"/>
+      <rect x="260" y="540" width="960" height="60" rx="22" fill="#dfe5ff"/>
+      <ellipse cx="380" cy="525" rx="130" ry="48" fill="#f4f6ff"/>
+      ${at(395, 465, Head(Object.assign({}, CHAR_DEFAULTS, { emotion: 'sleep' })), .95, -16)}
+      <g opacity=".14"><ellipse cx="420" cy="470" rx="90" ry="70" fill="#5ff2ff" stroke="none" class="glow"/></g>
+      <g class="breathe"><path d="M470,522 C520,470 640,455 760,470 C880,485 1000,468 1100,478 C1180,488 1225,520 1228,560 L1228,640 L462,640 Z" fill="#2f5bc4"/>
+        <path d="M560,500 C600,560 610,600 600,640 M800,478 C820,540 830,590 820,640 M1040,476 C1060,540 1060,590 1050,640" fill="none" stroke="#3f6fe0" stroke-width="10"/></g>
+      <circle cx="700" cy="560" r="170" fill="url(#rGlow)" stroke="none" class="glow"/>
+      <path d="M520,520 Q600,600 668,582" fill="none" stroke-width="34"/><path d="M520,520 Q600,600 668,582" fill="none" stroke="#36b5b0" stroke-width="22"/>
+      ${at(705, 560, Phone('glow'), .42, -24)}<circle cx="676" cy="580" r="15" fill="${SKIN}"/>
+      <g transform="translate(470,400)">${['Z', 'Z', 'Z'].map((z, i) => T(i * 10, 0, z, 44 + i * 16, '#cfe0ff', { outline: 6, cls: 'zz', style: `animation-delay:${i * .9}s` })).join('')}</g>`;
+/** Ковёр на стену (локально 600×420) */
+function Carpet() {
+      let carpet = '';
+      for (let i = 0; i < 15; i++) carpet += `<path d="M${30 + i * 40},14 l12,-10 l12,10 l-12,10Z" fill="#f2c14e" stroke="none"/><path d="M${30 + i * 40},406 l12,-10 l12,10 l-12,10Z" fill="#f2c14e" stroke="none"/>`;
+      for (let i = 0; i < 31; i++) carpet += `<path d="M${10 + i * 20},420 v18 M${10 + i * 20},0 v-16" stroke="#a8231f" stroke-width="5"/>`;
+  return `<rect width="600" height="420" rx="10" fill="#a8231f" stroke-width="8"/>${carpet}
+        <rect x="30" y="30" width="540" height="360" fill="#c7372f" stroke="#f2c14e" stroke-width="12"/>
+        <polygon points="300,70 470,210 300,350 130,210" fill="#1f4e8c" stroke="#f2c14e" stroke-width="8"/>
+        <polygon points="300,130 395,210 300,290 205,210" fill="#f2c14e" stroke="none"/><polygon points="300,170 345,210 300,250 255,210" fill="#c7372f" stroke="none"/>
+        ${[[80, 80], [520, 80], [80, 340], [520, 340]].map(([a, b]) => `<polygon points="${a},${b - 30} ${a + 30},${b} ${a},${b + 30} ${a - 30},${b}" fill="#1f4e8c" stroke="#f2c14e" stroke-width="5"/>`).join('')}`;
+}
+/** Отрывной календарь «1996» (локально 160×200) */
+const Calendar1996 = () => `<g class="swing"><rect width="160" height="200" rx="8" fill="#fff"/><rect width="160" height="50" rx="8" fill="#e74c3c"/>
+        <circle cx="45" cy="0" r="8" fill="#ddd"/><circle cx="115" cy="0" r="8" fill="#ddd"/>${T(80, 36, 'ИЮНЬ', 26, '#fff')}${T(80, 130, '1996', 56, INK)}${T(80, 175, 'понедельник', 20, '#e74c3c')}</g>`;
+/** Табурет с пищащим тамагочи (центр табурета (400,640)) */
+const StoolTama = () => `      <g transform="translate(400,640)"><ellipse cx="0" cy="0" rx="90" ry="22" fill="#b06a35"/><path d="M-60,10 L-70,120 M60,10 L70,120 M0,20 L0,125" stroke-width="12"/><path d="M-60,10 L-70,120 M60,10 L70,120 M0,20 L0,125" stroke="#b06a35" stroke-width="6"/></g>
+      <g transform="translate(400,590) scale(1.4)"><g class="beep">${Tamagotchi()}</g></g>
+      ${['♪', '♫', '!'].map((c, i) => T(450 + i * 40, 500 - i * 30, c, 40, '#ff3df2', { outline: 5, cls: 'zz', style: `animation-delay:${i * .5}s` })).join('')}
+`;
+/** Тумба с ламповым ТВ (левый верх тумбы (1150,590)) */
+const TVCabinet = () => `      <rect x="1150" y="590" width="350" height="150" rx="10" fill="#8a4b22"/><rect x="1170" y="610" width="150" height="110" rx="6" fill="#a0602e"/><rect x="1330" y="610" width="150" height="110" rx="6" fill="#a0602e"/>
+      <circle cx="1300" cy="665" r="6" fill="#ffd23f"/><circle cx="1350" cy="665" r="6" fill="#ffd23f"/>
+      ${at(1325, 592, TV('bars'))}
+`;
+/** Киоск «ПРОДУКТЫ» с продавщицей в окошке (локально 820×620) */
+function Kiosk() {
+      const r = rng(11); let bottles = '';
+      for (let row = 0; row < 2; row++) for (let i = 0; i < 12; i++) {
+        const bx = 140 + i * 46, sy = 230 + row * 95, c = ['#7bd389', '#ff6b6b', '#ffd23f', '#9b7bff', '#4ad3e0'][Math.floor(r() * 5)];
+        bottles += `<rect x="${bx}" y="${sy - 56}" width="22" height="56" rx="5" fill="${c}" stroke-width="4"/><rect x="${bx + 6}" y="${sy - 70}" width="10" height="16" fill="${c}" stroke-width="4"/>`;
+      }
+  return `        <rect x="0" y="60" width="820" height="560" fill="#2d9c8f" stroke-width="8"/>
+        <rect x="120" y="130" width="580" height="300" fill="#fff6d8"/>
+        <path d="M120,230 H700 M120,325 H700" stroke-width="6"/>${bottles}
+        ${Character(Object.assign({}, SELLER, { x: 410, y: 530, s: .85, emotion: 'wink', armR: 'wave', armL: 'hips' }))}
+        <g class="pop" ${delay(1.2)}><path d="M455,215 l8,-20 l8,20 l20,8 l-20,8 l-8,20 l-8,-20 l-20,-8Z" fill="#fff36b" class="twinkle"/></g>
+        <rect x="255" y="130" width="12" height="300" fill="#2d9c8f" stroke-width="5"/><rect x="555" y="130" width="12" height="300" fill="#2d9c8f" stroke-width="5"/>
+        <rect x="120" y="130" width="580" height="300" fill="none" stroke-width="10"/>
+        <rect x="0" y="430" width="820" height="190" fill="#2d9c8f" stroke-width="8"/>
+        <rect x="290" y="418" width="240" height="22" rx="5" fill="#ddd"/>
+        ${[0, 1, 2, 3, 4].map(i => `<rect x="${305 + i * 44}" y="${396}" width="34" height="22" rx="4" fill="${['#ff8fc8', '#ffd23f', '#7fd3ff', '#ff6b6b', '#7bd389'][i]}" stroke-width="4"/>`).join('')}
+        <rect x="40" y="460" width="210" height="120" rx="10" fill="#ffe066" stroke-width="6"/>${T(145, 510, 'ЖВАЧКА', 36, '#d63031')}${T(145, 556, 'с вкладышем', 24, INK)}
+        <rect x="570" y="460" width="210" height="120" rx="10" fill="#ff8fc8" stroke-width="6"/>${T(675, 510, 'ЛИМОНАД', 34, '#fff', { outline: 6 })}${T(675, 556, 'Буратино', 26, INK)}
+        <rect x="-30" y="-10" width="880" height="80" rx="10" fill="#e74c3c"/>${T(410, 50, 'ПРОДУКТЫ', 58, '#fff', { outline: 6 })}
+        <g transform="translate(830,10)"><g class="swing"><circle r="50" fill="#ffd23f" stroke-width="6"/>${T(0, 2, '24', 36, INK)}${T(0, 26, 'ЧАСА', 16, INK)}</g></g>
+`;
+}
+
+/** Зачёркнутые «слова из будущего»; pos(i) → [x,y] */
+function FutureWords(pos, s = 1) {
+  return ['лайк', 'зум', 'вайб', 'кринж', 'хайп', 'сторис'].map((t, i) => {
+    const [x, y] = pos(i), d = .9 + i * .3;
+    return `<g transform="translate(${x},${y}) rotate(${(i % 2 ? 5 : -5)}) scale(${s})"><g class="pop" ${delay(d)}>
+      <rect x="-95" y="-45" width="190" height="90" rx="30" fill="#fff" stroke-width="6"/>${T(0, 14, t, 42, INK)}
+      <path class="strike" ${delay(d + .35)} pathLength="1" d="M-80,-30 L80,30 M80,-30 L-80,30" fill="none" stroke="#ff3b3b" stroke-width="10"/></g></g>`;
+  }).join('');
+}
+
 /** Плашка-правило, падает сверху и покачивается на верёвках */
-function RulePlate(n, lines, color = '#ffe066') {
-  const txt = lines.map((l, i) => T(0, 238 + i * 62 - (lines.length - 1) * 31, l, 54, INK)).join('');
-  return `<g transform="translate(800,0)"><g class="dropIn"><g class="swing">
-    <path d="M-300,-20 L-300,90 M300,-20 L300,90" stroke-width="7"/>
-    <rect x="-450" y="80" width="900" height="250" rx="30" fill="${color}" stroke-width="10"/>
-    <rect x="-428" y="100" width="856" height="210" rx="22" fill="none" stroke="#d63031" stroke-width="5" stroke-dasharray="18 12"/>
-    <circle cx="-300" cy="96" r="9" fill="#888"/><circle cx="300" cy="96" r="9" fill="#888"/>
+function RulePlate(n, lines, color = '#ffe066', o = {}) {
+  const { cx = 800, w = 900, size = 54, dy = 0 } = o, hw = w / 2, rp = Math.round(w / 3);
+  const txt = lines.map((l, i) => T(0, 238 + i * size * 1.15 - (lines.length - 1) * size * .575, l, size, INK)).join('');
+  return `<g transform="translate(${cx},${dy})"><g class="dropIn"><g class="swing">
+    <path d="M${-rp},${-20 - dy} L${-rp},90 M${rp},${-20 - dy} L${rp},90" stroke-width="7"/>
+    <rect x="${-hw}" y="80" width="${w}" height="250" rx="30" fill="${color}" stroke-width="10"/>
+    <rect x="${-hw + 22}" y="100" width="${w - 44}" height="210" rx="22" fill="none" stroke="#d63031" stroke-width="5" stroke-dasharray="18 12"/>
+    <circle cx="${-rp}" cy="96" r="9" fill="#888"/><circle cx="${rp}" cy="96" r="9" fill="#888"/>
     ${T(0, 146, `ПРАВИЛО ${n}`, 46, '#d63031')}${txt}</g></g></g>`;
 }
-function ruleBg(col1, col2) {
-  return `<rect width="1600" height="900" fill="${col1}"/><g transform="translate(800,520)"><g class="spin">${
+function ruleBg(col1, col2, W = 1600, H = 900, cx = 800, cy = 520) {
+  const R = Math.hypot(W, H);
+  return `<rect width="${W}" height="${H}" fill="${col1}"/><g transform="translate(${cx},${cy})"><g class="spin">${
     [...Array(12)].map((_, i) => { const a = i * 30 * Math.PI / 180, b = (i * 30 + 15) * Math.PI / 180;
-      return `<polygon points="0,0 ${1400 * Math.cos(a)},${1400 * Math.sin(a)} ${1400 * Math.cos(b)},${1400 * Math.sin(b)}" fill="${col2}" stroke="none"/>`; }).join('')
-  }</g></g><rect width="1600" height="900" fill="url(#pDots)" stroke="none"/>`;
+      return `<polygon points="0,0 ${R * Math.cos(a)},${R * Math.sin(a)} ${R * Math.cos(b)},${R * Math.sin(b)}" fill="${col2}" stroke="none"/>`; }).join('')
+  }</g></g><rect width="${W}" height="${H}" fill="url(#pDots)" stroke="none"/>`;
 }
 
 /* =====================================================================
@@ -630,34 +727,14 @@ const scenes = [
     voice: 'Дима уснул в две тысячи двадцать шестом.',
     draw() {
       return `<rect width="1600" height="900" fill="url(#gRoomNight)"/>
-      <g transform="translate(980,100)">
-        <rect x="0" y="0" width="420" height="330" rx="12" fill="url(#gNight)" stroke-width="10"/>
-        ${Stars(18, 10, 10, 400, 180, 7)}
-        <circle cx="320" cy="80" r="70" fill="url(#rWarm)" stroke="none" opacity=".5"/><circle cx="320" cy="80" r="40" fill="#fff6c9"/><circle cx="308" cy="70" r="7" fill="#efe3a8" stroke="none"/><circle cx="330" cy="92" r="5" fill="#efe3a8" stroke="none"/>
-        <g fill="#0b1636" stroke="none"><rect x="10" y="200" width="60" height="125"/><rect x="75" y="160" width="45" height="165"/><rect x="125" y="215" width="70" height="110"/><rect x="200" y="140" width="40" height="185"/><rect x="250" y="190" width="80" height="135"/><rect x="335" y="225" width="75" height="100"/></g>
-        <rect x="218" y="128" width="4" height="12" fill="#0b1636" stroke="none"/><circle cx="220" cy="126" r="5" fill="#ff3b6b" stroke="none" class="blinkFast"/>
-        ${[[20, 215], [40, 240], [85, 180], [95, 230], [140, 235], [165, 260], [210, 160], [210, 200], [265, 210], [295, 240], [350, 245], [380, 270]].map(([a, b], i) => `<rect x="${a}" y="${b}" width="10" height="8" fill="${i % 3 ? '#5ff2ff' : '#ffd66b'}" stroke="none" class="twinkle" ${delay(i * .3)}/>`).join('')}
-        <rect x="205" y="0" width="10" height="330" fill="#2c4a8a" stroke="none"/><rect x="0" y="160" width="420" height="10" fill="#2c4a8a" stroke="none"/>
-        <rect x="-15" y="325" width="450" height="22" rx="6" fill="#2c4a8a"/>
-      </g>
+      ${at(980, 100, NightWindow())}
       <polygon points="985,445 1400,445 1300,900 640,900" fill="#9fc3ff" opacity=".08" stroke="none"/>
-      <g transform="translate(130,120)"><rect width="320" height="170" rx="18" fill="#0d1838" stroke="#5ff2ff" stroke-width="6" class="glow"/>
-        ${T(160, 110, '2026', 96, '#5ff2ff', { cls: 'glow' })}${T(160, 150, 'NEO-ГОД', 22, '#ff7eb6')}</g>
+      ${at(130, 120, Poster2026())}
       <rect y="720" width="1600" height="180" fill="#0f1a3d"/>
       <g class="vacuum"><ellipse cx="220" cy="840" rx="60" ry="18" fill="#3a3f5c"/><ellipse cx="220" cy="832" rx="44" ry="10" fill="#4b5276" stroke="none"/><circle cx="220" cy="830" r="5" fill="#5ff2ff" stroke="none" class="blinkFast"/></g>
-      <rect x="200" y="380" width="70" height="350" rx="20" fill="#4a3a80"/>
-      <rect x="230" y="560" width="1010" height="150" rx="20" fill="#3d2f6b"/><rect x="250" y="700" width="30" height="40" fill="#2b2050"/><rect x="1190" y="700" width="30" height="40" fill="#2b2050"/>
-      <rect x="260" y="540" width="960" height="60" rx="22" fill="#dfe5ff"/>
-      <ellipse cx="380" cy="525" rx="130" ry="48" fill="#f4f6ff"/>
-      ${at(395, 465, Head(Object.assign({}, CHAR_DEFAULTS, { emotion: 'sleep' })), .95, -16)}
-      <g opacity=".14"><ellipse cx="420" cy="470" rx="90" ry="70" fill="#5ff2ff" stroke="none" class="glow"/></g>
-      <g class="breathe"><path d="M470,522 C520,470 640,455 760,470 C880,485 1000,468 1100,478 C1180,488 1225,520 1228,560 L1228,640 L462,640 Z" fill="#2f5bc4"/>
-        <path d="M560,500 C600,560 610,600 600,640 M800,478 C820,540 830,590 820,640 M1040,476 C1060,540 1060,590 1050,640" fill="none" stroke="#3f6fe0" stroke-width="10"/></g>
-      <circle cx="700" cy="560" r="170" fill="url(#rGlow)" stroke="none" class="glow"/>
-      <path d="M520,520 Q600,600 668,582" fill="none" stroke-width="34"/><path d="M520,520 Q600,600 668,582" fill="none" stroke="#36b5b0" stroke-width="22"/>
-      ${at(705, 560, Phone('glow'), .42, -24)}<circle cx="676" cy="580" r="15" fill="${SKIN}"/>
+      ${SleepingBed()}
       <g transform="translate(1270,600)"><rect width="150" height="120" rx="10" fill="#3d2f6b"/><rect x="25" y="-50" width="100" height="50" rx="10" fill="#141c3a"/>${T(75, -16, '02:47', 30, '#ff3b6b', { cls: 'blinkFast' })}</g>
-      <g transform="translate(470,400)">${['Z', 'Z', 'Z'].map((z, i) => T(i * 10, 0, z, 44 + i * 16, '#cfe0ff', { outline: 6, cls: 'zz', style: `animation-delay:${i * .9}s` })).join('')}</g>`;
+`;
     }
   },
   // ---------- 2. Утро 1996 ----------
@@ -666,25 +743,13 @@ const scenes = [
     subtitle: 'А проснулся… в 1996-м.',
     voice: 'А проснулся… в девяносто шестом.',
     draw() {
-      let carpet = '';
-      for (let i = 0; i < 15; i++) carpet += `<path d="M${30 + i * 40},14 l12,-10 l12,10 l-12,10Z" fill="#f2c14e" stroke="none"/><path d="M${30 + i * 40},406 l12,-10 l12,10 l-12,10Z" fill="#f2c14e" stroke="none"/>`;
-      for (let i = 0; i < 31; i++) carpet += `<path d="M${10 + i * 20},420 v18 M${10 + i * 20},0 v-16" stroke="#a8231f" stroke-width="5"/>`;
       return `<rect width="1600" height="900" fill="#f7c873"/><rect width="1600" height="720" fill="url(#pStripes)" stroke="none"/>
       <polygon points="1600,0 1600,420 1000,900 700,900 1250,0" fill="#fff6c8" opacity=".25" stroke="none" class="glow"/>
-      <g transform="translate(80,70)"><rect width="600" height="420" rx="10" fill="#a8231f" stroke-width="8"/>${carpet}
-        <rect x="30" y="30" width="540" height="360" fill="#c7372f" stroke="#f2c14e" stroke-width="12"/>
-        <polygon points="300,70 470,210 300,350 130,210" fill="#1f4e8c" stroke="#f2c14e" stroke-width="8"/>
-        <polygon points="300,130 395,210 300,290 205,210" fill="#f2c14e" stroke="none"/><polygon points="300,170 345,210 300,250 255,210" fill="#c7372f" stroke="none"/>
-        ${[[80, 80], [520, 80], [80, 340], [520, 340]].map(([a, b]) => `<polygon points="${a},${b - 30} ${a + 30},${b} ${a},${b + 30} ${a - 30},${b}" fill="#1f4e8c" stroke="#f2c14e" stroke-width="5"/>`).join('')}</g>
-      <g transform="translate(730,110)"><g class="swing"><rect width="160" height="200" rx="8" fill="#fff"/><rect width="160" height="50" rx="8" fill="#e74c3c"/>
-        <circle cx="45" cy="0" r="8" fill="#ddd"/><circle cx="115" cy="0" r="8" fill="#ddd"/>${T(80, 36, 'ИЮНЬ', 26, '#fff')}${T(80, 130, '1996', 56, INK)}${T(80, 175, 'понедельник', 20, '#e74c3c')}</g></g>
+      ${at(80, 70, Carpet())}
+      ${at(730, 110, Calendar1996())}
       <rect y="720" width="1600" height="180" fill="url(#pParquet)"/><path d="M0,720 H1600" stroke-width="8"/>
-      <g transform="translate(400,640)"><ellipse cx="0" cy="0" rx="90" ry="22" fill="#b06a35"/><path d="M-60,10 L-70,120 M60,10 L70,120 M0,20 L0,125" stroke-width="12"/><path d="M-60,10 L-70,120 M60,10 L70,120 M0,20 L0,125" stroke="#b06a35" stroke-width="6"/></g>
-      <g transform="translate(400,590) scale(1.4)"><g class="beep">${Tamagotchi()}</g></g>
-      ${['♪', '♫', '!'].map((c, i) => T(450 + i * 40, 500 - i * 30, c, 40, '#ff3df2', { outline: 5, cls: 'zz', style: `animation-delay:${i * .5}s` })).join('')}
-      <rect x="1150" y="590" width="350" height="150" rx="10" fill="#8a4b22"/><rect x="1170" y="610" width="150" height="110" rx="6" fill="#a0602e"/><rect x="1330" y="610" width="150" height="110" rx="6" fill="#a0602e"/>
-      <circle cx="1300" cy="665" r="6" fill="#ffd23f"/><circle cx="1350" cy="665" r="6" fill="#ffd23f"/>
-      ${at(1325, 592, TV('bars'))}
+      ${StoolTama()}
+      ${TVCabinet()}
       <g class="shake">${Dima({ x: 930, y: 850, s: 1.05, emotion: 'shock', armL: 'up', armR: 'up' })}</g>
       ${at(1090, 360, `<g class="pop" ${delay(.6)}>${T(0, 0, '?!', 130, '#ff3b3b', { outline: 10 })}</g>`, 1, 12)}`;
     }
@@ -713,13 +778,7 @@ const scenes = [
     subtitle: 'Правило первое: не говорить слова из будущего.',
     voice: 'Правило первое: не говорить слова из будущего.',
     draw() {
-      const words = ['лайк', 'зум', 'вайб', 'кринж', 'хайп', 'сторис'];
-      const w = words.map((t, i) => {
-        const x = 820 + (i % 3) * 230, y = 470 + Math.floor(i / 3) * 150, d = .9 + i * .3;
-        return `<g transform="translate(${x},${y}) rotate(${(i % 2 ? 5 : -5)})"><g class="pop" ${delay(d)}>
-          <rect x="-95" y="-45" width="190" height="90" rx="30" fill="#fff" stroke-width="6"/>${T(0, 14, t, 42, INK)}
-          <path class="strike" ${delay(d + .35)} pathLength="1" d="M-80,-30 L80,30 M80,-30 L-80,30" fill="none" stroke="#ff3b3b" stroke-width="10"/></g></g>`;
-      }).join('');
+      const w = FutureWords(i => [820 + (i % 3) * 230, 470 + Math.floor(i / 3) * 150]);
       return `${ruleBg('#ff9f43', '#ff8c2a')}${RulePlate(1, ['Не говорить слова', 'из будущего'])}
       ${Dima({ x: 420, y: 880, s: .95, emotion: 'worried', armR: 'mouth' })}${w}`;
     }
@@ -785,30 +844,10 @@ const scenes = [
     subtitle: '— Новенький? Не волнуйся. Тут все оттуда.',
     voice: 'Новенький? Не волнуйся. Тут все оттуда.', pitch: 1.3,
     draw() {
-      const r = rng(11); let bottles = '';
-      for (let row = 0; row < 2; row++) for (let i = 0; i < 12; i++) {
-        const bx = 140 + i * 46, sy = 230 + row * 95, c = ['#7bd389', '#ff6b6b', '#ffd23f', '#9b7bff', '#4ad3e0'][Math.floor(r() * 5)];
-        bottles += `<rect x="${bx}" y="${sy - 56}" width="22" height="56" rx="5" fill="${c}" stroke-width="4"/><rect x="${bx + 6}" y="${sy - 70}" width="10" height="16" fill="${c}" stroke-width="4"/>`;
-      }
       return `<rect width="1600" height="900" fill="url(#gYard)"/>${Cloud(120, 110, .8)}${Cloud(1180, 60, .6, 3)}
       <g opacity=".55">${Building({ x: 0, y: 180, w: 600, h: 500, cols: 6, rows: 5, seed: 9, color: '#e6c8a0' })}</g>
       <rect y="700" width="1600" height="200" fill="#cbb391"/>
-      <g transform="translate(620,170)">
-        <rect x="0" y="60" width="820" height="560" fill="#2d9c8f" stroke-width="8"/>
-        <rect x="120" y="130" width="580" height="300" fill="#fff6d8"/>
-        <path d="M120,230 H700 M120,325 H700" stroke-width="6"/>${bottles}
-        ${Character(Object.assign({}, SELLER, { x: 410, y: 530, s: .85, emotion: 'wink', armR: 'wave', armL: 'hips' }))}
-        <g class="pop" ${delay(1.2)}><path d="M455,215 l8,-20 l8,20 l20,8 l-20,8 l-8,20 l-8,-20 l-20,-8Z" fill="#fff36b" class="twinkle"/></g>
-        <rect x="255" y="130" width="12" height="300" fill="#2d9c8f" stroke-width="5"/><rect x="555" y="130" width="12" height="300" fill="#2d9c8f" stroke-width="5"/>
-        <rect x="120" y="130" width="580" height="300" fill="none" stroke-width="10"/>
-        <rect x="0" y="430" width="820" height="190" fill="#2d9c8f" stroke-width="8"/>
-        <rect x="290" y="418" width="240" height="22" rx="5" fill="#ddd"/>
-        ${[0, 1, 2, 3, 4].map(i => `<rect x="${305 + i * 44}" y="${396}" width="34" height="22" rx="4" fill="${['#ff8fc8', '#ffd23f', '#7fd3ff', '#ff6b6b', '#7bd389'][i]}" stroke-width="4"/>`).join('')}
-        <rect x="40" y="460" width="210" height="120" rx="10" fill="#ffe066" stroke-width="6"/>${T(145, 510, 'ЖВАЧКА', 36, '#d63031')}${T(145, 556, 'с вкладышем', 24, INK)}
-        <rect x="570" y="460" width="210" height="120" rx="10" fill="#ff8fc8" stroke-width="6"/>${T(675, 510, 'ЛИМОНАД', 34, '#fff', { outline: 6 })}${T(675, 556, 'Буратино', 26, INK)}
-        <rect x="-30" y="-10" width="880" height="80" rx="10" fill="#e74c3c"/>${T(410, 50, 'ПРОДУКТЫ', 58, '#fff', { outline: 6 })}
-        <g transform="translate(830,10)"><g class="swing"><circle r="50" fill="#ffd23f" stroke-width="6"/>${T(0, 2, '24', 36, INK)}${T(0, 26, 'ЧАСА', 16, INK)}</g></g>
-      </g>
+      ${at(620, 170, Kiosk())}
       ${Dima({ x: 330, y: 880, s: 1, emotion: 'shock', emotion2: 'smile', swapAt: 3.3 })}
       ${Bubble(60, 190, 560, 220, ['Новенький?', 'Не волнуйся.', 'Тут все оттуда.'], { tx: 920, ty: 360, d: .5, size: 48 })}`;
     }
@@ -862,11 +901,135 @@ const scenes = [
 ];
 
 /* =====================================================================
+   3б. ВЕРТИКАЛЬНЫЕ РАСКЛАДКИ 9:16 (Shorts / Reels / TikTok), viewBox 900×1600.
+   Главное держим в зоне y≈150…1080: снизу и справа платформы рисуют свой интерфейс,
+   субтитры стоят на ~75% высоты. Персонажи и предметы — те же компоненты.
+   ===================================================================== */
+const VERTICAL = [
+  // 1. Ночь 2026
+  () => `<rect width="900" height="1600" fill="url(#gRoomNight)"/>
+    ${at(290, 130, Poster2026())}${at(240, 360, NightWindow())}
+    <polygon points="245,710 655,710 860,1130 40,1130" fill="#9fc3ff" opacity=".07" stroke="none"/>
+    <rect y="1120" width="900" height="480" fill="#0f1a3d"/>
+    <g transform="translate(-30,470)"><g class="vacuum"><ellipse cx="220" cy="840" rx="60" ry="18" fill="#3a3f5c"/><ellipse cx="220" cy="832" rx="44" ry="10" fill="#4b5276" stroke="none"/><circle cx="220" cy="830" r="5" fill="#5ff2ff" stroke="none" class="blinkFast"/></g></g>
+    <g transform="translate(690,740)"><rect width="140" height="56" rx="10" fill="#141c3a"/>${T(70, 40, '02:47', 32, '#ff3b6b', { cls: 'blinkFast' })}</g>
+    <g transform="translate(-125,520) scale(.82)">${SleepingBed()}</g>`,
+  // 2. Утро 1996
+  () => `<rect width="900" height="1600" fill="#f7c873"/><rect width="900" height="1130" fill="url(#pStripes)" stroke="none"/>
+    <polygon points="900,0 900,520 560,1130 380,1130 700,0" fill="#fff6c8" opacity=".25" stroke="none" class="glow"/>
+    ${at(150, 140, Carpet())}${at(60, 610, Calendar1996())}
+    <rect y="1130" width="900" height="470" fill="url(#pParquet)"/><path d="M0,1130 H900" stroke-width="8"/>
+    <g transform="translate(-250,370)">${StoolTama()}</g>
+    <g transform="translate(-242,575) scale(.75)">${TVCabinet()}</g>
+    <g class="shake">${Dima({ x: 420, y: 1130, s: 1.05, emotion: 'shock', armL: 'up', armR: 'up' })}</g>
+    ${at(345, 660, `<g class="pop" ${delay(.6)}>${T(0, 0, '?!', 110, '#ff3b3b', { outline: 10 })}</g>`, 1, 12)}`,
+  // 3. Крупно телефон
+  () => {
+    const drops = [[-230, -110], [220, -150], [-220, 120], [230, 100], [0, -240]].map(([dx, dy], i) =>
+      `<g class="flyOut" style="--dx:${dx}px;--dy:${dy}px;animation-delay:${i * .25}s"><path d="M0,-18 Q14,4 0,12 Q-14,4 0,-18Z" fill="#8fd8ff" stroke-width="4"/></g>`).join('');
+    return `${ruleBg('#ffb347', '#ff9f2e', 900, 1600, 450, 700)}
+    ${Dima({ x: 450, y: 1440, s: 1.5, emotion: 'panic', armL: 'up', armR: 'up', anim: 'shakeSoft' })}
+    <g transform="translate(450,930)">${drops}</g>
+    <g transform="translate(450,470) rotate(-5)"><g class="vibe">
+      <g transform="scale(.78)"><path d="M-205,-180 l-30,10 M-210,-120 l-40,0 M-205,-60 l-30,-10 M205,-180 l30,10 M210,-120 l40,0 M205,-60 l30,-10" stroke-width="10"/></g>
+      ${at(0, 0, Phone('nosignal'), 2.1)}</g></g>
+    ${at(450, 150, `<g class="pop" ${delay(2.8)}>${T(0, 0, 'ПАНИКА!', 92, '#ff3b3b', { outline: 11 })}</g>`, 1, -4)}
+    ${at(200, 790, `<g class="pop" ${delay(1.2)}>${T(0, 0, 'Wi-Fi?..', 50, '#fff', { outline: 8 })}</g>`, 1, -8)}`;
+  },
+  // 4. Правило 1
+  () => `${ruleBg('#ff9f43', '#ff8c2a', 900, 1600, 450, 760)}${RulePlate(1, ['Не говорить слова', 'из будущего'], '#ffe066', { cx: 450, w: 820, size: 50, dy: 110 })}
+    ${Dima({ x: 250, y: 1130, s: 1.05, emotion: 'worried', armR: 'mouth' })}
+    ${FutureWords(i => [585 + (i % 2) * 190, 560 + Math.floor(i / 2) * 145], .92)}`,
+  // 5. Правило 2
+  () => `${ruleBg('#f6b93b', '#f0a422', 900, 1600, 450, 760)}${RulePlate(2, ['Ничего не менять'], '#7fe3ff', { cx: 450, w: 820, size: 56, dy: 110 })}
+    <rect x="470" y="1080" width="380" height="40" rx="10" fill="#8a4b22"/>
+    ${at(650, 1090, TV('football'), .95)}
+    ${at(640, 990, `<g class="stamp" ${delay(3)}><rect x="-190" y="-50" width="380" height="100" rx="14" fill="none" stroke="#e8112d" stroke-width="10"/>${T(0, 22, 'НЕ ТРОГАТЬ!', 58, '#e8112d')}</g>`, .82)}
+    ${Dima({ x: 240, y: 1130, s: .95, emotion: 'nervous', armL: 'up', armR: 'up' })}
+    <g transform="translate(300,560)">${Butterfly()}</g>`,
+  // 6. Правило 3
+  () => `${ruleBg('#e17055', '#d65f45', 900, 1600, 450, 760)}${RulePlate(3, ['Никому не говорить,', 'что ты оттуда'], '#b8f28f', { cx: 450, w: 820, size: 48, dy: 110 })}
+    ${Dima({ x: 300, y: 1130, s: 1, emotion: 'shh', armR: 'shh' })}
+    ${Bubble(410, 560, 200, 100, ['Тсс!'], { tx: 345, ty: 790, d: .8, size: 52 })}
+    <g transform="translate(150,600)"><g class="pop" ${delay(1.4)}><g class="float">
+      <circle cx="0" cy="0" r="70" fill="#fff" stroke-width="6"/><circle cx="62" cy="82" r="15" fill="#fff" stroke-width="5"/><circle cx="88" cy="114" r="9" fill="#fff" stroke-width="4"/>
+      ${T(0, 16, '2026', 40, '#3b6cff')}<path d="M-50,-40 L50,40" stroke="#ff3b3b" stroke-width="9"/></g></g></g>
+    ${Character(Object.assign({}, KID1, { x: 625, y: 1130, s: .7, emotion: 'neutral', armL: 'hips' }))}
+    ${Character(Object.assign({}, KID2, { x: 790, y: 1130, s: .7, emotion: 'smile' }))}
+    ${[625, 790].map((x, i) => at(x, 810, `<g class="pop" ${delay(2 + i * .4)}><g class="float">${T(0, 0, '?', 80, '#fff', { outline: 9 })}</g></g>`)).join('')}`,
+  // 7. Двор, приставка
+  () => {
+    const by = 1010;
+    return `<rect width="900" height="1600" fill="url(#gYard)"/>${Sun(790, 120, 45)}${Cloud(90, 110, .7)}${Cloud(480, 70, .55, 2)}
+    ${Building({ x: 30, y: 200, w: 840, h: 760, cols: 8, rows: 7, seed: 3 })}
+    <rect y="960" width="900" height="640" fill="#cbb391"/><rect y="950" width="900" height="26" fill="#7cc35a"/>
+    ${Tree(80, 1000, .72)}
+    <path d="M810,900 C840,860 860,820 860,760" fill="none" stroke-width="6"/><rect x="847" y="740" width="26" height="26" rx="4" fill="#fff"/>
+    ${Bench(60, by, 540)}
+    <path d="M150,980 C200,1100 600,1110 720,1010 M340,985 C390,1095 620,1095 735,1020 M530,995 C570,1070 660,1070 745,1030" fill="none" stroke="#333" stroke-width="5"/>
+    <rect x="680" y="940" width="170" height="125" rx="6" fill="#c68a4a"/><path d="M680,980 H850 M680,1022 H850" stroke-width="5"/>
+    ${at(765, 944, TV('game'), .5)}
+    ${Character(Object.assign({}, KID1, { x: 150, y: by + 60 * .7, s: .7, pose: 'sit', emotion: 'smile', armL: 'game', armR: 'game', prop: at(0, -167, Gamepad()) }))}
+    ${Dima({ x: 340, y: by + 60 * .82, s: .82, pose: 'sit', emotion: 'chew', emotion2: 'nervous', swapAt: 2.6, armL: 'game', armR: 'game', prop: at(0, -167, Gamepad()) })}
+    ${Character(Object.assign({}, KID2, { x: 530, y: by + 60 * .7, s: .7, pose: 'sit', emotion: 'smile', emotion2: 'shock', swapAt: 3, armL: 'game', armR: 'game', prop: at(0, -167, Gamepad()) }))}
+    ${Bubble(170, 560, 340, 110, ['…это кринж'], { tx: 335, ty: 720, d: 2.3, size: 46 })}
+    ${[150, 530].map((x, i) => at(x, 745, `<g class="pop" ${delay(2.9 + i * .3)}>${T(0, 0, '??', 66, '#ff3b3b', { outline: 8 })}</g>`)).join('')}`;
+  },
+  // 8. Киоск
+  () => `<rect width="900" height="1600" fill="url(#gYard)"/>${Cloud(60, 80, .6)}${Cloud(600, 40, .5, 3)}
+    <rect y="740" width="900" height="860" fill="#cbb391"/>
+    <g transform="translate(70,180) scale(.92)">${Kiosk()}</g>
+    ${Dima({ x: 200, y: 1130, s: 1, emotion: 'shock', emotion2: 'smile', swapAt: 3.3 })}
+    ${Bubble(360, 780, 500, 220, ['Новенький?', 'Не волнуйся.', 'Тут все оттуда.'], { tx: 470, ty: 600, d: .5, size: 44 })}`,
+  // 9. Дед с раскладушкой «2031»
+  () => `<rect width="900" height="1600" fill="url(#gGold)"/>${Sun(790, 130, 45)}${Cloud(80, 90, .55, 1)}
+    <g opacity=".6">${Building({ x: 420, y: 560, w: 480, h: 400, cols: 5, rows: 4, seed: 5, color: '#f0cfa0' })}</g>
+    <rect y="960" width="900" height="640" fill="#d4b98f"/><rect y="950" width="900" height="24" fill="#7cc35a"/>
+    ${Tree(60, 990, .7)}
+    ${Bench(40, 1000, 330)}
+    ${Character(Object.assign({}, GRANDPA, { x: 200, y: 1000 + 60 * .82, s: .82, pose: 'sit', emotion: 'smile', emotion2: 'wink', swapAt: 2.2, armR: 'phone', itemR: at(0, -10, FlipPhone('2031'), .9), armL: 'hips' }))}
+    <g class="pop" ${delay(1)}>
+      <path d="M385,465 L222,858 M480,470 L238,868" stroke-width="4" stroke-dasharray="10 8" fill="none"/>
+      <circle cx="450" cy="330" r="140" fill="#fff8e6" stroke-width="8"/>${at(450, 368, FlipPhone('2031'), 2.15)}
+      <circle cx="450" cy="330" r="140" fill="none" stroke="#ffd23f" stroke-width="5"/></g>
+    ${Dima({ x: 510, y: 1130, s: .9, emotion: 'shock', emotion2: 'happy', swapAt: 3.6 })}
+    ${Character(Object.assign({}, BOY, { x: 760, y: 1130, s: .62, emotion: 'wink', armR: 'phone', itemR: at(0, -6, Tamagotchi('#9b7bff'), .8) }))}
+    <g class="pop" ${delay(2.4)}><path d="M800,860 l7,-18 l7,18 l18,7 l-18,7 l-7,18 l-7,-18 l-18,-7Z" fill="#fff36b" class="twinkle"/></g>
+    ${Pigeon(660, 1250, .8)}${Pigeon(320, 1290, .75, .4)}${Bird(560, 520, 1)}${Bird(620, 560, .8, 1)}`,
+  // 10. Финал
+  () => {
+    const back = [
+      Character(Object.assign({}, GRANDPA, { x: 120, y: 1000, s: .68, emotion: 'happy', armR: 'wave', waveDelay: .3 })),
+      Character(Object.assign({}, SELLER, { x: 330, y: 1000, s: .7, emotion: 'wink', armR: 'wave', armL: 'hips', waveDelay: .5 })),
+      Character(Object.assign({}, KID2, { x: 690, y: 1000, s: .62, emotion: 'happy', armR: 'wave', waveDelay: .4 })),
+    ].join('');
+    const front = [
+      Character(Object.assign({}, KID1, { x: 200, y: 1140, s: .6, emotion: 'happy', armR: 'wave', waveDelay: .1 })),
+      Dima({ x: 520, y: 1140, s: .85, emotion: 'happy', armL: 'wave', waveDelay: 0 }),
+      Character(Object.assign({}, BOY, { x: 790, y: 1140, s: .56, emotion: 'happy', armR: 'wave', itemL: at(0, 0, Tamagotchi('#9b7bff'), .6), waveDelay: .2 })),
+    ].join('');
+    return `<rect width="900" height="1600" fill="url(#gSunset)"/>${Stars(22, 0, 0, 900, 320, 21)}
+    ${Sun(450, 860, 220, false)}
+    <g opacity=".95">${Building({ x: -20, y: 560, w: 300, h: 400, cols: 4, rows: 6, seed: 2, color: '#6e3f6a', seam: '#5a3158', win: '#3e2450', lit: .45, balcony: false })}
+    ${Building({ x: 620, y: 520, w: 300, h: 440, cols: 4, rows: 6, seed: 8, color: '#6e3f6a', seam: '#5a3158', win: '#3e2450', lit: .45, balcony: false })}</g>
+    <rect y="960" width="900" height="640" fill="#5a2f55"/><rect y="950" width="900" height="22" fill="#3f8f5a"/>
+    ${Bird(600, 560, 1.1)}${Bird(680, 600, .9, .7)}${Bird(740, 540, .8, 1.4)}
+    ${back}${front}
+    <g transform="translate(450,400)"><g class="title" ${delay(2.6)}>${T(0, 0, 'КОНЕЦ', 165, '#ffe066', { outline: 14 })}</g></g>`;
+  },
+];
+scenes.forEach((sc, i) => { sc.drawV = VERTICAL[i]; });
+
+/* =====================================================================
    4. ОЗВУЧКА (Web Speech API)
    ===================================================================== */
 const params = new URLSearchParams(location.search);
 const SPEED = Math.max(.1, parseFloat(params.get('speed')) || 1);
 const MUTE = params.has('mute') || SPEED !== 1;
+// Формат кадра: 16:9 (по умолчанию) или 9:16 для Shorts / Reels / TikTok (?format=vertical)
+const VERT = params.get('format') === 'vertical';
+const VW = VERT ? 900 : 1600, VH = VERT ? 1600 : 900;
+if (VERT) document.body.classList.add('vert');
 const Speech = {
   ok: ('speechSynthesis' in window) && !MUTE,
   voice: null,
@@ -899,8 +1062,8 @@ const M = {               // состояние плеера
 window.__movie = { M, scenes, jump: i => { restart(i); } };
 
 function wrapSVG(inner) {
-  return `<svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
-    <g class="cam" stroke="${INK}" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"
+  return `<svg viewBox="0 0 ${VW} ${VH}" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+    <g class="cam" style="transform-origin:${VW / 2}px ${VH / 2}px" stroke="${INK}" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"
        font-family="'Trebuchet MS','Segoe UI',Verdana,'DejaVu Sans',sans-serif">${inner}</g></svg>`;
 }
 
@@ -920,7 +1083,7 @@ function startScene(i) {
   });
   const el = document.createElement('div');
   el.className = `layer in-${kind}`;
-  el.innerHTML = wrapSVG(sc.draw());
+  el.innerHTML = wrapSVG(VERT ? sc.drawV() : sc.draw());
   layers.appendChild(el);
   if (tr === 'flash') { const f = $('flash'); f.classList.remove('go'); void f.offsetWidth; f.classList.add('go'); }
   // субтитры

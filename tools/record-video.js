@@ -3,6 +3,11 @@ const { chromium } = require('playwright');
 const { execFileSync } = require('child_process');
 const fs = require('fs');
 const SP = process.argv[2], OUT = process.argv[3];
+// FORMAT=vertical — 1080×1920 (9:16) для Shorts / Reels / TikTok, иначе 1280×720
+const VERT = process.env.FORMAT === 'vertical';
+const VIEW = VERT ? { width: 1080, height: 1920 } : { width: 1280, height: 720 };
+const SIZE = VERT ? { width: 1080, height: 1920 } : { width: 1280, height: 720 };
+const URL = 'file://' + require('path').resolve(__dirname, '..', 'index.html') + '?mute=1' + (VERT ? '&format=vertical' : '');
 const A = `${SP}/audio`, V = `${SP}/vid`;
 fs.mkdirSync(A, { recursive: true }); fs.rmSync(V, { recursive: true, force: true });
 const dur = f => parseFloat(execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', f]).toString());
@@ -10,7 +15,7 @@ const dur = f => parseFloat(execFileSync('ffprobe', ['-v', 'error', '-show_entri
   const b = await chromium.launch();
   // 1) тексты озвучки прямо из массива scenes
   const p0 = await b.newPage();
-  await p0.goto('file:///home/user/video/index.html?mute=1');
+  await p0.goto(URL);
   const sc = await p0.evaluate(() => window.__movie.scenes.map(s => ({ voice: s.voice, pitch: s.pitch || 1, duration: s.duration })));
   await p0.close();
   // Голоса: нейронный Piper. PIPER_MODEL — рассказчик, PIPER_MODEL_ALT — реплики с pitch>1 (продавщица).
@@ -32,11 +37,11 @@ const dur = f => parseFloat(execFileSync('ffprobe', ['-v', 'error', '-show_entri
   // длительность сцены = max(минимальной, 0.35с + фраза + 0.6с)
   const durations = sc.map((s, i) => Math.max(s.duration, (350 + audio[i].ms + 600) / 1000));
   // 2) запись видео
-  const ctx = await b.newContext({ viewport: { width: 1280, height: 720 }, recordVideo: { dir: V, size: { width: 1280, height: 720 } } });
+  const ctx = await b.newContext({ viewport: VIEW, recordVideo: { dir: V, size: SIZE } });
   const p = await ctx.newPage();
   const vStart = Date.now();
   const errs = []; p.on('pageerror', e => errs.push(e.message));
-  await p.goto('file:///home/user/video/index.html?mute=1');
+  await p.goto(URL);
   await p.addStyleTag({ content: '#app{padding:0!important;gap:0!important} #controls{display:none!important} #stage{width:100vw!important;height:100vh!important;border:0!important;border-radius:0!important;box-shadow:none!important}' });
   await p.evaluate(([d, ms]) => d.forEach((x, i) => { window.__movie.scenes[i].duration = x; window.__movie.scenes[i].voiceMs = ms[i]; }), [durations, audio.map(a => a.ms)]);
   await p.waitForTimeout(800);
@@ -57,7 +62,7 @@ const dur = f => parseFloat(execFileSync('ffprobe', ['-v', 'error', '-show_entri
   const fl = audio.map((a, i) => `[${i + 1}:a]adelay=${starts[i]}|${starts[i]}[a${i}]`).join(';') +
     ';' + audio.map((_, i) => `[a${i}]`).join('') + `amix=inputs=${audio.length}:normalize=0,apad[aout]`;
   args.push('-filter_complex', fl, '-map', '0:v', '-map', '[aout]', '-t', total.toFixed(2),
-    '-c:v', 'libx264', '-preset', 'slow', '-crf', '18', '-pix_fmt', 'yuv420p', '-r', '25', '-c:a', 'aac', '-b:a', '160k', '-ac', '2', '-movflags', '+faststart', OUT);
+    '-c:v', 'libx264', '-preset', 'slow', '-crf', '18', '-pix_fmt', 'yuv420p', '-r', VERT ? '30' : '25', '-c:a', 'aac', '-b:a', '160k', '-ac', '2', '-movflags', '+faststart', OUT);
   execFileSync('ffmpeg', args);
   console.log('scene starts (s):', starts.map(s => (s / 1000).toFixed(1)).join(' '));
   console.log('voice lengths (s):', audio.map(a => (a.ms / 1000).toFixed(1)).join(' '));
