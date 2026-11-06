@@ -8,12 +8,12 @@
 
 ## Видео
 
-Готовая запись лежит в `tut-vse-ottuda.mp4`: 1280×720, 25 кадров/с. Озвучка сделана нейронным синтезатором Piper: рассказчик говорит голосом `ru_RU-dmitri-medium`, продавщица — голосом `ru-irinia-medium` с чуть поднятым тоном.
+Готовая запись лежит в `tut-vse-ottuda.mp4`: 1280×720, 25 кадров/с. Озвучка сделана нейронным синтезатором Piper: рассказчик говорит голосом `ru_RU-ruslan-medium`, продавщица — голосом `ru-irinia-medium` с чуть поднятым тоном.
 
-Как пересобрать. Нужны Playwright с Chromium, ffmpeg и `pip install piper-tts`. Голоса берутся из релизов на GitHub: [k2-fsa/sherpa-onnx, tts-models](https://github.com/k2-fsa/sherpa-onnx/releases/tag/tts-models) (`vits-piper-ru_RU-dmitri-medium.tar.bz2`, там же denis и ruslan) и [rhasspy/piper v0.0.2](https://github.com/rhasspy/piper/releases/tag/v0.0.2) (`voice-ru-irinia-medium.tar.gz`).
+Как пересобрать. Нужны Playwright с Chromium, ffmpeg и `pip install piper-tts`. Голоса берутся из релизов на GitHub: [k2-fsa/sherpa-onnx, tts-models](https://github.com/k2-fsa/sherpa-onnx/releases/tag/tts-models) (`vits-piper-ru_RU-ruslan-medium.tar.bz2`, там же dmitri и denis) и [rhasspy/piper v0.0.2](https://github.com/rhasspy/piper/releases/tag/v0.0.2) (`voice-ru-irinia-medium.tar.gz`).
 
 ```
-PIPER_MODEL=путь/к/ru_RU-dmitri-medium.onnx \
+PIPER_MODEL=путь/к/ru_RU-ruslan-medium.onnx \
 PIPER_MODEL_ALT=путь/к/ru-irinia-medium.onnx \
 node tools/record-video.js /tmp/rec tut-vse-ottuda.mp4
 ```
