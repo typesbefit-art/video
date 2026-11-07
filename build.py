@@ -2,7 +2,7 @@
 """Сборка финального mp4: видео-кадры + голос + музыка (с дакингом под голос) + эффекты.
 
   python3 build.py --preview  → output/preview.mp4 (540x960, 15 fps)
-  python3 build.py            → output/video.mp4   (1080x1920, 30 fps)
+  python3 build.py            → output/video.mp4   (1080x1920, 60 fps; --fps 30 для 30)
 После сборки проверяет результат через ffprobe.
 """
 import argparse
@@ -60,8 +60,10 @@ def check(path, w, h, fps, total):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--preview", action="store_true")
+    ap.add_argument("--fps", type=int, help="по умолчанию 15 (preview) / 60 (финал)")
     a = ap.parse_args()
-    w, h, fps = (540, 960, 15) if a.preview else (1080, 1920, 30)
+    w, h = (540, 960) if a.preview else (1080, 1920)
+    fps = a.fps or (15 if a.preview else 60)
     tl = json.loads((BUILD / "timeline.json").read_text(encoding="utf-8"))
     total = tl["total"]
     video = BUILD / f"video_{w}x{h}_{fps}.mp4"

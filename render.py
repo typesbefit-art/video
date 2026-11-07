@@ -6,7 +6,7 @@
 отдают JPEG прямо в ffmpeg (без промежуточных PNG на диске).
 
   python3 render.py --preview   # 540x960, 15 fps
-  python3 render.py             # 1080x1920, 30 fps
+  python3 render.py             # 1080x1920, 60 fps (--fps 30 для 30)
 Результат: build/video_<w>x<h>_<fps>.mp4 (без звука).
 """
 import argparse
@@ -112,7 +112,7 @@ def main():
     a = ap.parse_args()
     w = a.width or (540 if a.preview else 1080)
     h = w * 16 // 9
-    fps = a.fps or (15 if a.preview else 30)
+    fps = a.fps or (15 if a.preview else 60)
 
     page_path, tl = build_page()
     if a.still is not None:

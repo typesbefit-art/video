@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 # Одна команда — всё видео.
 #   ./run.sh preview   — быстрый предпросмотр 540x960 @ 15 fps → output/preview.mp4
-#   ./run.sh           — финал 1080x1920 @ 30 fps → output/video.mp4
+#   ./run.sh           — финал 1080x1920 @ 60 fps → output/video.mp4
+#   FPS=30 ./run.sh    — финал с другой частотой кадров
 set -euo pipefail
 cd "$(dirname "$0")"
 
 MODE="${1:-final}"
 FLAG=""
 [ "$MODE" = "preview" ] && FLAG="--preview"
+[ -n "${FPS:-}" ] && FLAG="$FLAG --fps $FPS"
 
 # зависимости (ставятся один раз)
 python3 -c "import edge_tts, numpy, playwright" 2>/dev/null || pip install -q -r requirements.txt
