@@ -114,17 +114,22 @@ export const useCase: React.FC<SceneProps> = ({frame, icon, label, bg}) => (
 );
 
 export const crossedWords: React.FC<SceneProps> = ({frame, dur}) => {
-  const words = ['зарплата', 'талант', 'везение'];
-  const step = (dur - 20) / 3;
+  // timed to the narration: "Разница между ними — не зарплата, не талант и не везение."
+  const words = [{w: 'зарплата', at: 0.4}, {w: 'талант', at: 0.6}, {w: 'везение', at: 0.8}];
   return (
     <Stage frame={frame} bg="#f8edeb" bg2="#fff" ground={false} clouds={false}>
-      {words.map((w, i) => (
-        <g key={w}>
-          <T x={960} y={260 + i * 220} size={110} color={C.ink} stroke="#fff" opacity={fadeIn(frame, i * step * 0.6)}>{w}</T>
-          <line x1={680} x2={680 + 560 * lerp(frame, [i * step + 10, i * step + 22], [0, 1])} y1={260 + i * 220} y2={260 + i * 220}
-            stroke={C.red} strokeWidth={22} strokeLinecap="round" />
-        </g>
-      ))}
+      {words.map(({w, at}, i) => {
+        const t0 = at * dur;
+        const len = lerp(frame, [t0 + 6, t0 + 18], [0, 1]);
+        return (
+          <g key={w}>
+            <T x={960} y={260 + i * 220} size={110} color={C.ink} stroke="#fff" opacity={fadeIn(frame, t0 - 10, 10)}>{w}</T>
+            {len > 0 ? (
+              <line x1={680} x2={680 + 560 * len} y1={260 + i * 220} y2={260 + i * 220} stroke={C.red} strokeWidth={22} strokeLinecap="round" />
+            ) : null}
+          </g>
+        );
+      })}
     </Stage>
   );
 };
