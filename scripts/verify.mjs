@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Checks out/video.mp4 with ffprobe and extracts 3 preview frames
 // (beginning / middle / end, each taken while a subtitle is on screen).
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -35,13 +35,9 @@ const mdat = head.indexOf('mdat');
 checks.push(['+faststart (moov before mdat)', moov >= 0 && (mdat < 0 || moov < mdat), `moov@${moov} mdat@${mdat}`]);
 
 // loudness of the final mix
-let loud = '';
-try {
-  const r = execFileSync('ffmpeg', ['-hide_banner', '-nostats', '-i', video, '-af', 'ebur128=peak=true', '-f', 'null', '-'], { stdio: ['ignore', 'pipe', 'pipe'] });
-  loud = r.toString();
-} catch (e) {
-  loud = String(e.stderr || '');
-}
+const loud = String(
+  spawnSync('ffmpeg', ['-hide_banner', '-nostats', '-i', video, '-af', 'ebur128=peak=true', '-f', 'null', '-'], { encoding: 'utf8' }).stderr || '',
+);
 
 // preview frames while a subtitle is visible
 const tl = JSON.parse(fs.readFileSync(path.join(ROOT, 'out', 'timeline.json'), 'utf8'));
@@ -68,9 +64,10 @@ for (const [name, pass, info] of checks) {
   ok &&= pass;
   console.log(`${pass ? '✅' : '❌'} ${name.padEnd(30)} ${info}`);
 }
-const I = loud.match(/I:\s+(-?[\d.]+) LUFS/g)?.at(-1);
-const P = loud.match(/Peak:\s+(-?[\d.]+) dBFS/g)?.at(-1);
-if (I) console.log(`ℹ️  Loudness: ${I.replace(/\s+/g, ' ')}, true ${P?.replace(/\s+/g, ' ')}`);
+const summary = loud.slice(loud.lastIndexOf('Summary:'));
+const I = summary.match(/I:\s+(-?[\d.]+) LUFS/)?.[1];
+const P = summary.match(/Peak:\s+(-?[\d.]+) dBFS/)?.[1];
+if (I) console.log(`ℹ️  Loudness: ${I} LUFS integrated, true peak ${P ?? '?'} dBFS`);
 console.log(`ℹ️  Size: ${(fs.statSync(video).size / 1e6).toFixed(1)} MB`);
 console.log(`🖼  Previews: ${picks.map(([n, t]) => `out/preview/${n}.png @${t.toFixed(2)}s`).join(', ')} (+ *_safezone.png)`);
 console.log(ok ? '\nAll checks passed.' : '\nSome checks FAILED.');

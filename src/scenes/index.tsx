@@ -380,7 +380,7 @@ const outro: ShotDef[] = [
           <Hand x={600 + 160 * (1 - range(ctx.t, 0.2, 0.9))} y={650 + 300 * (1 - range(ctx.t, 0.2, 0.9)) + press * 16} scale={0.9} rot={-20} />
           {pressed ? <Sparkles t={ctx.t} cx={540} cy={560} spread={420} n={10} color={C.yellow} /> : null}
           <g transform={`scale(1)`}>
-            <Chart x={560} y={820} w={420} h={330} progress={range(ctx.t, 0.6, Math.max(1.2, capAt))} />
+            <Chart x={560} y={820} w={420} h={330} progress={range(ctx.t, 0.05, Math.min(0.9, Math.max(0.5, capAt)))} />
             <Label text={L.capital} x={770} y={1250} size={78} fill={C.yellow} scale={popIn(ctx, Math.max(0.4, capAt - 0.1))} maxWidth={440} />
           </g>
           <CoinC ctx={ctx} x={260} y={880} scale={0.62} arms="up" mood={pressed ? 'wink' : 'happy'} />
