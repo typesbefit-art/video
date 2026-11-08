@@ -323,7 +323,7 @@ const Checklist: React.FC<{ ctx: ShotCtx; checks: number[] }> = ({ ctx, checks }
             <rect x={-440} y={-66} width={880} height={132} rx={30} fill="#fff" stroke={INK} strokeWidth={STROKE} />
             <rect x={-410} y={-42} width={84} height={84} rx={18} fill={chk > 0.1 ? C.green : '#eee'} stroke={INK} strokeWidth={8} />
             <path d="M -394 0 L -372 24 L -338 -22" stroke="#fff" strokeWidth={16} fill="none" strokeLinecap="round" strokeLinejoin="round" transform={`translate(-368 0) scale(${chk}) translate(368 0)`} />
-            <Label text={s} x={-300} y={22} size={64} maxWidth={720} anchor="start" fill={INK} stroke="#fff" sw={0} weight={900} />
+            <Label text={s} x={-300} y={22} size={64} maxWidth={710} anchor="start" fill={INK} stroke="#fff" sw={0} weight={700} shadow={false} />
           </g>
         );
       })}

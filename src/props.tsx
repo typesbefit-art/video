@@ -3,12 +3,12 @@ import { C, FONT, INK, STROKE, fitFontSize, hash } from './theme';
 
 // Outlined cartoon text in SVG, auto-shrunk to maxWidth.
 export const Label: React.FC<{
-  text: string; x: number; y: number; size: number; maxWidth?: number; fill?: string; stroke?: string; sw?: number; rotate?: number; scale?: number; anchor?: 'middle' | 'start' | 'end'; weight?: number;
-}> = ({ text, x, y, size, maxWidth = 840, fill = '#fff', stroke = INK, sw = 16, rotate = 0, scale = 1, anchor = 'middle', weight = 900 }) => {
+  text: string; x: number; y: number; size: number; maxWidth?: number; fill?: string; stroke?: string; sw?: number; rotate?: number; scale?: number; anchor?: 'middle' | 'start' | 'end'; weight?: number; shadow?: boolean;
+}> = ({ text, x, y, size, maxWidth = 840, fill = '#fff', stroke = INK, sw = 16, rotate = 0, scale = 1, anchor = 'middle', weight = 900, shadow = true }) => {
   const fs = fitFontSize(text, maxWidth, size, weight);
   return (
     <g transform={`translate(${x} ${y}) rotate(${rotate}) scale(${scale})`}>
-      <text x={4} y={8} textAnchor={anchor} fontFamily={FONT} fontWeight={weight} fontSize={fs} fill={INK} stroke={INK} strokeWidth={sw} strokeLinejoin="round" paintOrder="stroke">{text}</text>
+      {shadow ? <text x={4} y={8} textAnchor={anchor} fontFamily={FONT} fontWeight={weight} fontSize={fs} fill={INK} stroke={INK} strokeWidth={sw} strokeLinejoin="round" paintOrder="stroke">{text}</text> : null}
       <text x={0} y={0} textAnchor={anchor} fontFamily={FONT} fontWeight={weight} fontSize={fs} fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" paintOrder="stroke">{text}</text>
     </g>
   );
@@ -238,7 +238,7 @@ export const Calendar: React.FC<{ x: number; y: number; scale?: number; page: nu
     <circle cx={-80} cy={-170} r={14} fill={INK} />
     <circle cx={80} cy={-170} r={14} fill={INK} />
     <g transform={`translate(0 -70) scale(1 ${Math.abs(Math.cos(page * Math.PI))}) translate(0 70)`}>
-      <Label text={label} x={0} y={70} size={150} maxWidth={250} fill={INK} stroke="#fff" sw={0} />
+      <Label text={label} x={0} y={70} size={150} maxWidth={250} fill={INK} stroke="#fff" sw={0} shadow={false} />
     </g>
   </g>
 );
