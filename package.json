@@ -1,0 +1,39 @@
+{
+  "name": "finance-short",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "studio": "remotion studio src/index.ts",
+    "verify": "node scripts/verify.mjs",
+    "timeline": "node scripts/build.mjs --no-render"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/typesbefit-art/video.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/typesbefit-art/video/issues"
+  },
+  "homepage": "https://github.com/typesbefit-art/video#readme",
+  "dependencies": {
+    "@fontsource/rubik": "^5.3.0",
+    "@remotion/bundler": "^4.0.541",
+    "@remotion/cli": "^4.0.541",
+    "@remotion/layout-utils": "^4.0.541",
+    "@remotion/renderer": "^4.0.541",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "remotion": "^4.0.541"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "typescript": "^7.0.2"
+  },
+  "type": "module",
+  "private": true
+}
