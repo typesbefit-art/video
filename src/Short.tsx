@@ -38,10 +38,9 @@ export const Short: React.FC<{index: number}> = ({index}) => {
         Не финансовая рекомендация · 7% годовых — допущение
       </div>
       <AbsoluteFill style={{background: '#000', opacity: 1 - fade(frame)}} />
-      <Sequence from={-from} layout="none">
-        <Audio src={staticFile('voice.wav')} volume={(f) => fade(f - from)} />
-        <Audio src={staticFile('music.wav')} volume={(f) => MUSIC_VOLUME * 1.2 * fade(f - from)} />
-      </Sequence>
+      {/* trim the full-length tracks to this window (a negative Sequence offset drops the audio) */}
+      <Audio src={staticFile('voice.wav')} trimBefore={from} volume={(f) => fade(f)} />
+      <Audio src={staticFile('music.wav')} trimBefore={from} volume={(f) => MUSIC_VOLUME * 1.2 * fade(f)} />
     </AbsoluteFill>
   );
 };
