@@ -4,7 +4,7 @@ import timeline from './data/timeline.json';
 import {Scenes} from './Scenes';
 import {Subtitles} from './Subtitles';
 
-export const MUSIC_VOLUME = 0.09;
+export const MUSIC_VOLUME = 0.075;
 
 export const Soundtrack: React.FC<{total: number}> = ({total}) => (
   <>
