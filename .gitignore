@@ -1,0 +1,4 @@
+__pycache__/
+.tts_cache/
+.build/
+*.mp4
