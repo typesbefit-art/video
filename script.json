@@ -1,0 +1,26 @@
+{
+  "settings": {
+    "contact_name": "Курьер",
+    "contact_status": "онлайн",
+    "hook": "Когда курьер у двери, а ты без макияжа",
+    "outro_title": "Подписывайся на",
+    "outro_channel": "«Прочитано и проигнорировано»",
+    "min_duration": 45,
+    "max_duration": 60
+  },
+  "messages": [
+    {"who": "courier", "text": "Я с заказом. Стою у двери.", "pause_after": 0.3},
+    {"who": "client", "text": "Вижу вас в глазок. Подождите, я без макияжа.", "pause_after": 0.3},
+    {"who": "courier", "text": "Я курьер. Видел и не такое.", "pause_after": 0.4},
+    {"who": "client", "text": "Дайте пять минут!", "pause_after": 0.3},
+    {"who": "courier", "text": "У меня мороженое тает.", "pause_after": 0.4},
+    {"who": "client", "text": "Какое мороженое? Я суши заказывала.", "pause_after": 0.3},
+    {"who": "courier", "text": "Тогда это не ваш заказ. Но давайте я тут постою, я устал.", "pause_after": 0.5},
+    {"who": "client", "text": "Вы издеваетесь?", "pause_after": 0.3},
+    {"who": "courier", "text": "Нет. Суши у меня. Просто хотел узнать, кто так красиво ругается за дверью.", "pause_after": 0.5},
+    {"who": "client", "text": "Ну спасибо.", "pause_after": 0.3},
+    {"who": "courier", "text": "Только вы пять минут красились, а суши за это время остыли.", "pause_after": 0.4},
+    {"who": "client", "text": "Поставлю вам одну звезду.", "pause_after": 0.3},
+    {"who": "courier", "text": "Ставьте. А я вам поставлю две: за макияж и за терпение.", "pause_after": 0.8}
+  ]
+}

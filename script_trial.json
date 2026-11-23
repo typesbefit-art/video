@@ -1,0 +1,43 @@
+{
+  "settings": {
+    "contact_name": "Курьер",
+    "contact_status": "онлайн",
+    "hook": "Когда курьер у двери, а ты без макияжа",
+    "outro_title": "Подписывайся на",
+    "outro_channel": "«Прочитано и проигнорировано»",
+    "min_duration": 0,
+    "max_duration": 999
+  },
+  "messages": [
+    {
+      "who": "courier",
+      "text": "Я с заказом. Стою у двери.",
+      "pause_after": 0.3
+    },
+    {
+      "who": "client",
+      "text": "Вижу вас в глазок. Подождите, я без макияжа.",
+      "pause_after": 0.3
+    },
+    {
+      "who": "courier",
+      "text": "Я курьер. Видел и не такое.",
+      "pause_after": 0.4
+    },
+    {
+      "who": "client",
+      "text": "Дайте пять минут!",
+      "pause_after": 0.3
+    },
+    {
+      "who": "courier",
+      "text": "У меня мороженое тает.",
+      "pause_after": 0.4
+    },
+    {
+      "who": "client",
+      "text": "Какое мороженое? Я суши заказывала.",
+      "pause_after": 0.3
+    }
+  ]
+}
