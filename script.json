@@ -1,0 +1,46 @@
+{
+  "settings": {
+    "title": "Сосед сверлит в 8 утра в воскресенье",
+    "title_highlight": ["8", "утра", "воскресенье"],
+    "outro_text": "Подписывайся на\n«Прочитано и проигнорировано»",
+
+    "contact_name": "Сосед снизу",
+    "contact_status": "онлайн",
+    "contact_typing": "печатает…",
+    "avatar_initial": "С",
+    "date_chip": "Воскресенье",
+    "start_time": "08:03",
+
+    "voices": {
+      "tenant":   {"voice": "ru-RU-SvetlanaNeural", "rate": "+8%", "pitch": "+2Hz"},
+      "neighbor": {"voice": "ru-RU-DmitryNeural",   "rate": "-4%", "pitch": "-3Hz"}
+    },
+
+    "colors": {
+      "bubble_me": "#A4E26A",
+      "bubble_me_text": "#10200A",
+      "bubble_other": "#3A3C42",
+      "bubble_other_text": "#F2F3F5",
+      "checks": "#3AA0FF",
+      "accent": "#6FB6FF",
+      "avatar": "#7A5CFA",
+      "subtitle_highlight": {"tenant": "#B6F36A", "neighbor": "#FFD84D"}
+    }
+  },
+
+  "messages": [
+    {"who": "tenant",   "text": "Здравствуйте. Вы почему сверлите в восемь утра в воскресенье?", "pause_after": 0.35},
+    {"who": "neighbor", "text": "Я не сверлю. Я думал, это вы.", "pause_after": 0.35},
+    {"who": "tenant",   "text": "Я сверху, вы снизу!", "pause_after": 0.3, "rate": "+12%", "pitch": "+4Hz"},
+    {"who": "neighbor", "text": "Значит, это не я. У меня тоже трясётся люстра.", "pause_after": 0.35},
+    {"who": "tenant",   "text": "И у меня трясётся люстра.", "pause_after": 0.3, "rate": "+2%"},
+    {"who": "neighbor", "text": "Значит, сверлит кто-то посередине.", "pause_after": 0.4},
+    {"who": "tenant",   "text": "Посередине между нами только пол.", "pause_after": 0.35, "rate": "+0%", "pitch": "-1Hz"},
+    {"who": "neighbor", "text": "Тогда это пол. Он с утра не в духе.", "pause_after": 0.4},
+    {"who": "tenant",   "text": "Идите проверьте!", "pause_after": 0.3, "rate": "+14%", "pitch": "+5Hz"},
+    {"who": "neighbor", "text": "Иду. Только тапки найду.", "pause_after": 0.6},
+    {"who": "neighbor", "text": "Нашёл. Это мой телефон на вибрации. Он лежал на столе.", "pause_after": 0.45, "time": "11:02", "stop_drill": true},
+    {"who": "tenant",   "text": "Вы три часа слушали, как он дрожит?!", "pause_after": 0.4, "time": "11:02", "rate": "+14%", "pitch": "+6Hz"},
+    {"who": "neighbor", "text": "Зато мы познакомились. Заходите на чай. Телефон тоже зовите.", "pause_after": 0.6, "time": "11:03", "rate": "-8%"}
+  ]
+}
