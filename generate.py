@@ -233,8 +233,8 @@ def voice_params(who, nth):
         "pitch": v["pitch"] + v.get("pitch_step", 0) * nth,
         "volume": v.get("volume", 0),
         "rhvoice": v.get("rhvoice", "anna"),
-        "rh_rate": v.get("rh_rate", 100),
-        "rh_pitch": v.get("rh_pitch", 100),
+        "rh_rate": v.get("rh_rate", 100) + v.get("rh_rate_step", 0) * nth,
+        "rh_pitch": v.get("rh_pitch", 100) + v.get("rh_pitch_step", 0) * nth,
     }
 
 
@@ -285,54 +285,54 @@ def tts_rhvoice(text, p, out_wav):
                     "-t", str(int(p["rh_pitch"])), "-o", out_wav],
                    input=text.encode("utf-8"), check=True,
                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    audio = decode_audio(out_wav)
-    # обрезаем тишину по краям
-    thr = 0.01
+    return decode_audio(out_wav), []   # таймингов слов нет — посчитаем пропорционально
+
+
+def trim_silence(audio, words, thr=0.012, lead=0.03, tail=0.08):
+    """Обрезает тишину по краям и сдвигает тайминги слов."""
     idx = np.where(np.abs(audio) > thr)[0]
-    if len(idx):
-        a = max(0, idx[0] - int(0.03 * SR))
-        b = min(len(audio), idx[-1] + int(0.06 * SR))
-        audio = audio[a:b]
-    return audio, []   # таймингов слов нет — посчитаем пропорционально
+    if not len(idx):
+        return audio, words
+    a = max(0, idx[0] - int(lead * SR))
+    b = min(len(audio), idx[-1] + int(tail * SR))
+    sh = a / SR
+    return audio[a:b], [(w, max(0.0, s - sh), max(0.0, e - sh)) for w, s, e in words]
 
 
-_edge_failed = False
-
-
-def synthesize(text, who, nth, engine, cache_dir):
-    global _edge_failed
+def synthesize(text, who, nth, eng, cache_dir):
+    """Озвучивает реплику одним движком (edge | rhvoice). Бросает RuntimeError при неудаче."""
+    import time
     p = voice_params(who, nth)
-    engines = {"edge": ["edge"], "rhvoice": ["rhvoice"], "auto": ["edge", "rhvoice"]}[engine]
-    last_err = None
-    for eng in engines:
-        if eng == "edge" and _edge_failed and engine == "auto":
-            continue
-        key = hashlib.sha1(json.dumps([eng, text, p], ensure_ascii=False, sort_keys=True).encode()).hexdigest()[:16]
-        npy, js = os.path.join(cache_dir, key + ".npy"), os.path.join(cache_dir, key + ".json")
-        if os.path.exists(npy) and os.path.exists(js):
-            with open(js, encoding="utf-8") as f:
-                return np.load(npy), json.load(f), eng
+    key = hashlib.sha1(json.dumps([eng, text, p], ensure_ascii=False, sort_keys=True).encode()).hexdigest()[:16]
+    npy, js = os.path.join(cache_dir, key + ".npy"), os.path.join(cache_dir, key + ".json")
+    if os.path.exists(npy) and os.path.exists(js):
+        with open(js, encoding="utf-8") as f:
+            return trim_silence(np.load(npy), [tuple(w) for w in json.load(f)])
+    tmp = os.path.join(cache_dir, key + (".mp3" if eng == "edge" else ".wav"))
+    attempts = int(os.environ.get("EDGE_RETRIES", 15)) if eng == "edge" else 1
+    last = None
+    for k in range(attempts):
         try:
-            tmp = os.path.join(cache_dir, key + (".mp3" if eng == "edge" else ".wav"))
             if eng == "edge":
                 audio, words = tts_edge(text, p, tmp)
             else:
                 audio, words = tts_rhvoice(text, p, tmp)
             if len(audio) < SR * 0.1:
                 raise RuntimeError("пустое аудио")
-            os.remove(tmp)
-            np.save(npy, audio.astype(np.float32))
-            with open(js, "w", encoding="utf-8") as f:
-                json.dump(words, f, ensure_ascii=False)
-            return audio, words, eng
+            break
         except Exception as e:  # noqa
-            last_err = e
-            if eng == "edge":
-                _edge_failed = True
-                if engine == "auto":
-                    print(f"  ! edge-tts недоступен ({type(e).__name__}: {str(e)[:120]}). "
-                          f"Переключаюсь на офлайн-озвучку RHVoice.")
-    raise SystemExit(f"Не удалось озвучить «{text}»: {last_err}")
+            last = e
+            if k + 1 < attempts:
+                time.sleep(min(6.0, 1.0 + k))
+    else:
+        raise RuntimeError(f"{type(last).__name__}: {str(last)[:150]}")
+    if os.path.exists(tmp):
+        os.remove(tmp)
+    audio, words = trim_silence(audio, words)
+    np.save(npy, audio.astype(np.float32))
+    with open(js, "w", encoding="utf-8") as f:
+        json.dump(words, f, ensure_ascii=False)
+    return audio, words
 
 
 def word_timings(text, words, dur):
@@ -1012,8 +1012,7 @@ def main():
     os.makedirs(cache_dir, exist_ok=True)
 
     print(f"[1/4] Озвучка {len(lines)} реплик...")
-    msgs, nth = [], {"boss": 0, "employee": 0}
-    engines_used = set()
+    msgs = []
     for i, L in enumerate(lines):
         m = Msg()
         m.who = L["who"]
@@ -1022,14 +1021,29 @@ def main():
         m.text = L["text"].strip()
         m.pause = float(L.get("pause_after", 0.3))
         m.clock = clock_add(CFG["start_time"], i // 3)
-        audio, words, eng = synthesize(m.text, m.who, nth[m.who], args.tts, cache_dir)
-        engines_used.add(eng)
-        nth[m.who] += 1
-        m.audio = audio
-        m.dur = len(audio) / SR
-        m.timings = word_timings(m.text, words, m.dur)
-        print(f"   {i + 1:2d}. {m.who:8s} {m.dur:4.1f}s  {m.text}")
         msgs.append(m)
+    # весь ролик озвучивается ОДНИМ движком, чтобы голоса не скакали
+    engines = {"edge": ["edge"], "rhvoice": ["rhvoice"], "auto": ["edge", "rhvoice"]}[args.tts]
+    used = None
+    for eng in engines:
+        try:
+            nth = {"boss": 0, "employee": 0}
+            for m in msgs:
+                m.audio, words = synthesize(m.text, m.who, nth[m.who], eng, cache_dir)
+                nth[m.who] += 1
+                m.dur = len(m.audio) / SR
+                m.timings = word_timings(m.text, words, m.dur)
+            used = eng
+            break
+        except RuntimeError as e:
+            print(f"  ! {eng}: не удалось озвучить «{m.text}» ({e})")
+            if eng != engines[-1]:
+                print("    Озвучиваю весь ролик запасным движком RHVoice.")
+    if used is None:
+        raise SystemExit("Озвучка не удалась ни одним движком.")
+    engines_used = {used}
+    for i, m in enumerate(msgs):
+        print(f"   {i + 1:2d}. {m.who:8s} {m.dur:4.1f}s  {m.text}")
 
     timing = build_timeline(msgs)
     if not args.limit and not args.no_fit:

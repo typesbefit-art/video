@@ -37,3 +37,9 @@ python generate.py script.json --limit 6 -o preview.mp4   # пробная ве�
   (у сотрудницы голос становится медленнее и ниже, то есть всё более уставшим).
 * Список голосов: `edge-tts --list-voices | grep ru-RU` (есть ещё `ru-RU-DariyaNeural`).
 * Офлайн-голоса RHVoice: ключи `rhvoice`, `rh_rate`, `rh_pitch` (aleksandr-hq, anna, elena, irina, mikhail…).
+
+## Если edge-tts отвечает через раз
+Скрипт повторяет запрос до 15 раз (`EDGE_RETRIES=25 python generate.py script.json` — больше).
+Уже озвученные реплики кэшируются, поэтому повторный запуск дозаписывает только недостающие.
+Ролик всегда озвучивается одним движком: если edge-tts так и не ответил, весь ролик озвучит RHVoice
+(или упадёт с ошибкой при `--tts edge`).

@@ -4,6 +4,20 @@
   "start_time": "23:00",
   "final_typing_seconds": 3.0,
   "cta": "Подписывайся на\n«Прочитано и проигнорировано»",
+  "voices": {
+    "boss": {
+      "rhvoice": "yuriy",
+      "rh_rate": 118,
+      "rh_pitch": 106
+    },
+    "employee": {
+      "rhvoice": "victoria",
+      "rh_rate": 104,
+      "rh_pitch": 98,
+      "rh_rate_step": -1.5,
+      "rh_pitch_step": -1.0
+    }
+  },
   "lines": [
     {"who": "boss", "text": "Привет. Ты не спишь?", "pause_after": 0.5},
     {"who": "employee", "text": "Сплю.", "pause_after": 0.6},
