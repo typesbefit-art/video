@@ -1,0 +1,34 @@
+{
+  "meta": {
+    "contact_name": "СТО «Ключ на 13»",
+    "contact_initials": "13",
+    "hook": "Клиент пришёл на СТО с *одним вопросом*",
+    "cta": "Подписывайся, *дальше будет хуже*",
+    "start_time": "19:42",
+    "voices": {
+      "client": {"voice": "ru-RU-SvetlanaNeural", "rate": "+25%", "pitch": "+0Hz"},
+      "master": {"voice": "ru-RU-DmitryNeural", "rate": "+20%", "pitch": "-2Hz"}
+    },
+    "music_volume": 0.10,
+    "pop_volume": 0.35
+  },
+  "lines": [
+    {"who": "client", "text": "Здравствуйте, у меня что-то стучит в подвеске. Сколько будет стоить?", "pause_after": 0.3},
+    {"who": "master", "text": "Пока не посмотрим, не скажу. Приезжайте.", "pause_after": 0.3},
+    {"who": "client", "text": "А примерно? Тысяч пять?", "pause_after": 0.3},
+    {"who": "master", "text": "Ха. Хорошая шутка. Приезжайте.", "pause_after": 0.4, "rate": "+12%"},
+    {"who": "system", "text": "3 часа спустя", "pause_after": 0.3, "skip_minutes": 180},
+    {"who": "master", "text": "Так, у вас убиты рычаги, стойки, сайлентблоки и, кажется, вера в людей.", "pause_after": 0.35, "typing": 1.1},
+    {"who": "client", "text": "Это всё из-за стука?", "pause_after": 0.3},
+    {"who": "master", "text": "Стук мы нашли. Это гантель в багажнике.", "pause_after": 0.4},
+    {"who": "client", "text": "Блин. Я её месяц возил, думал, это вес успеха.", "pause_after": 0.3},
+    {"who": "master", "text": "Но рычаги мы всё равно поменяли. Чего им пропадать?", "pause_after": 0.3},
+    {"who": "client", "text": "Я ничего не разрешал менять!", "pause_after": 0.25, "rate": "+32%", "pitch": "+10Hz"},
+    {"who": "master", "text": "А вы и не запрещали.", "pause_after": 0.4, "typing": 0.45},
+    {"who": "client", "text": "Сколько с меня?", "pause_after": 0.3},
+    {"who": "master", "text": "Ну, по-дружески... сорок семь тысяч.", "pause_after": 0.4, "typing": 1.0},
+    {"who": "client", "text": "А диагностика?", "pause_after": 0.3},
+    {"who": "master", "text": "Диагностика бесплатно. Мы же не звери.", "pause_after": 0.4},
+    {"who": "client", "text": "Беру гантель и ухожу в зал. Там хотя бы честно.", "pause_after": 0.6}
+  ]
+}
