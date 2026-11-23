@@ -1,0 +1,33 @@
+{
+  "config": {
+    "contact_name": "Мама",
+    "clock_start": "21:47",
+    "hook": "Когда мама пишет\n[«ты поел?»]",
+    "outro": "Подписывайся на\n[«Прочитано и проигнорировано»]",
+    "knock_caption": "ТУК. ТУК. ТУК.",
+    "history": [
+      {"chip": "Вчера"},
+      {"who": "mom", "text": "Шапку надел?"},
+      {"who": "son", "text": "Мам, июль."},
+      {"who": "mom", "text": "Вот поэтому и спрашиваю."},
+      {"chip": "Сегодня"}
+    ]
+  },
+  "messages": [
+    {"who": "mom", "text": "Ты поел?", "pause_after": 0.35},
+    {"who": "son", "text": "Да, мам.", "pause_after": 0.3},
+    {"who": "mom", "text": "Что ел?", "pause_after": 0.35},
+    {"who": "son", "text": "Кофе.", "pause_after": 0.45},
+    {"who": "mom", "text": "Это не еда. Это кофе.", "pause_after": 0.5},
+    {"who": "son", "text": "Ну и бутерброд.", "pause_after": 0.35, "rate": "+4%"},
+    {"who": "mom", "text": "С чем?", "pause_after": 0.4},
+    {"who": "son", "text": "С хлебом.", "pause_after": 0.6, "rate": "+2%", "pitch": "+3Hz"},
+    {"who": "mom", "text": "Я сейчас приеду.", "pause_after": 0.35, "typing": 1.0},
+    {"who": "son", "text": "Мам, не надо!", "pause_after": 0.35, "rate": "+14%", "pitch": "+10Hz", "typing": 0.45},
+    {"who": "mom", "text": "Я уже в такси. Везу борщ.", "pause_after": 0.4},
+    {"who": "son", "text": "Ты же в другом городе!", "pause_after": 0.45, "rate": "+16%", "pitch": "+14Hz", "typing": 0.45},
+    {"who": "mom", "text": "Уже выехала. Поставь воду на плиту.", "pause_after": 0.7},
+    {"who": "son", "text": "...мам, а ты точно в другом городе?", "pause_after": 0.8, "rate": "-6%", "pitch": "+6Hz", "typing": 1.4},
+    {"who": "mom", "text": "Я стою под дверью. Открывай.", "pause_after": 0.5, "rate": "-16%", "typing": 1.1}
+  ]
+}
