@@ -1,0 +1,88 @@
+{
+  "video": {
+    "width": 1080,
+    "height": 1920,
+    "fps": 60,
+    "crf": 19,
+    "preset": "medium",
+    "min_duration": 45,
+    "max_duration": 60
+  },
+
+  "speakers": {
+    "patient": {
+      "side": "right",
+      "voice": "ru-RU-SvetlanaNeural",
+      "rate": "+24%",
+      "pitch": "+10Hz",
+      "volume": "+0%",
+      "bubble": "#3A9BF5",
+      "text": "#FFFFFF",
+      "time": "#DCEEFF",
+      "read_receipt": true
+    },
+    "doctor": {
+      "side": "left",
+      "voice": "ru-RU-DmitryNeural",
+      "rate": "-8%",
+      "pitch": "-6Hz",
+      "volume": "+0%",
+      "bubble": "#2B3038",
+      "text": "#ECEFF3",
+      "time": "#8E96A3",
+      "read_receipt": false
+    }
+  },
+
+  "colors": {
+    "bg_top": "#12161D",
+    "bg_bottom": "#0A0D12",
+    "header": "#181D25",
+    "header_line": "#232A34",
+    "name": "#F2F4F7",
+    "status": "#5FB0FF",
+    "avatar_a": "#5B8CFF",
+    "avatar_b": "#8A5BFF",
+    "input_bar": "#151A21",
+    "input_field": "#20262F",
+    "input_hint": "#6B7480",
+    "typing_bubble_left": "#2B3038",
+    "typing_bubble_right": "#2E6FB0",
+    "typing_dot": "#B9C0CA",
+    "read_check": "#3FA9FF",
+    "subtitle": "#FFFFFF",
+    "subtitle_highlight": "#FFD60A",
+    "subtitle_stroke": "#000000",
+    "hook_text": "#FFFFFF",
+    "hook_accent": "#FFD60A",
+    "outro_card": "#1E2530",
+    "outro_text": "#FFFFFF",
+    "outro_accent": "#3FA9FF"
+  },
+
+  "timing": {
+    "hook_duration": 1.0,
+    "first_typing_at": 0.7,
+    "typing_patient": 0.45,
+    "typing_doctor": 0.55,
+    "voice_delay": 0.03,
+    "outro_duration": 1.5,
+    "tail_before_outro": 0.2,
+    "start_clock": "23:47"
+  },
+
+  "audio": {
+    "sample_rate": 48000,
+    "voice_gain": 1.0,
+    "pop_gain": 0.18,
+    "beat_gain": 0.10,
+    "beat_duck": 0.55,
+    "beat_bpm": 92
+  },
+
+  "fonts": {
+    "regular": ["/usr/share/fonts/opentype/inter/Inter-Regular.otf", "C:/Windows/Fonts/segoeui.ttf", "/System/Library/Fonts/Supplemental/Arial.ttf", "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"],
+    "medium": ["/usr/share/fonts/opentype/inter/Inter-SemiBold.otf", "C:/Windows/Fonts/seguisb.ttf", "/System/Library/Fonts/Supplemental/Arial Bold.ttf", "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"],
+    "bold": ["/usr/share/fonts/opentype/inter/Inter-Black.otf", "C:/Windows/Fonts/seguibl.ttf", "C:/Windows/Fonts/arialbd.ttf", "/System/Library/Fonts/Supplemental/Arial Black.ttf", "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"]
+  }
+}

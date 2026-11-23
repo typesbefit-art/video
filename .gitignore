@@ -1,0 +1,3 @@
+.tts_cache/
+*.audio.wav
+__pycache__/
