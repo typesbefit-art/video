@@ -1,0 +1,25 @@
+{
+  "settings": {
+    "hook": "Друг обещал вернуть деньги «завтра»",
+    "outro_top": "Подписывайся на",
+    "outro_title": "«Прочитано и проигнорировано»",
+    "contact_name": "Друг",
+    "contact_status": "был в сети давно"
+  },
+  "messages": [
+    {"who": "me",     "text": "Ты обещал вернуть деньги в пятницу.",            "pause_after": 0.4},
+    {"who": "friend", "text": "Обещал. Но пятница вышла какая-то не такая.",    "pause_after": 0.5},
+    {"who": "me",     "text": "Какая «не такая»?",                              "pause_after": 0.3},
+    {"who": "friend", "text": "Слишком быстрая.",                               "pause_after": 0.7},
+    {"who": "me",     "text": "Тогда в субботу.",                               "pause_after": 0.3},
+    {"who": "friend", "text": "В субботу у меня выходной.",                     "pause_after": 0.4},
+    {"who": "me",     "text": "От чего выходной?",                              "pause_after": 0.3},
+    {"who": "friend", "text": "От долгов. Я их коплю.",                         "pause_after": 0.8},
+    {"who": "me",     "text": "Так когда вернёшь?",                             "pause_after": 0.3},
+    {"who": "friend", "text": "Завтра.",                                        "pause_after": 0.6},
+    {"who": "me",     "text": "Ты это говорил вчера.",                          "pause_after": 0.4},
+    {"who": "friend", "text": "Значит, вчера я был прав.",                      "pause_after": 0.6},
+    {"who": "me",     "text": "Почему?",                                        "pause_after": 0.4},
+    {"who": "friend", "text": "Потому что завтра так и не наступило.",          "pause_after": 0.3}
+  ]
+}
