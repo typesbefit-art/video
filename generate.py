@@ -253,9 +253,12 @@ async def _tts_one(text, voice, rate, pitch, volume, sem):
     if os.path.exists(mp3) and os.path.exists(meta):
         return mp3, json.load(open(meta, encoding="utf-8"))
     async with sem:
-        for attempt in range(6):
+        for attempt in range(8):
+            r, p = (rate, pitch) if attempt < 5 else ("+0%", "+0Hz")
+            if attempt == 5:
+                print(f"  ! «{text}»: сервис не отдаёт звук с rate={rate} pitch={pitch}, пробую без них")
             try:
-                com = edge_tts.Communicate(text, voice, rate=rate, pitch=pitch, volume=volume,
+                com = edge_tts.Communicate(text, voice, rate=r, pitch=p, volume=volume,
                                            boundary="WordBoundary")
                 audio, words = bytearray(), []
                 async for ch in com.stream():
@@ -270,7 +273,7 @@ async def _tts_one(text, voice, rate, pitch, volume, sem):
                 json.dump(words, open(meta, "w", encoding="utf-8"), ensure_ascii=False)
                 return mp3, words
             except Exception as e:  # сеть / лимиты
-                if attempt == 5:
+                if attempt == 7:
                     raise RuntimeError(f"edge-tts не смог озвучить «{text}»: {e}")
                 await asyncio.sleep(1.5 * (attempt + 1))
 
