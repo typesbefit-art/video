@@ -1,0 +1,50 @@
+{
+  "title": "Когда подруга сказала «буду через 5 минут»",
+  "outro": "Подписывайся на «Прочитано и проигнорировано»",
+  "start_time": "19:42",
+  "characters": {
+    "lera": {
+      "name": "Лера",
+      "side": "right",
+      "voice": "ru-RU-SvetlanaNeural",
+      "pitch": "-2Hz",
+      "rate": "+0%",
+      "bubble": ["#8B5CF6", "#6D28D9"],
+      "avatar": "#7C3AED"
+    },
+    "yana": {
+      "name": "Яна",
+      "side": "left",
+      "voice": "ru-RU-SvetlanaNeural",
+      "pitch": "+6Hz",
+      "rate": "+12%",
+      "bubble": ["#2B2E38", "#2B2E38"],
+      "avatar": "#EC4899"
+    }
+  },
+  "messages": [
+    {"who": "lera", "text": "Ты где? Я уже 20 минут сижу в кафе.", "pause_after": 0.3},
+    {"who": "yana", "text": "Буду через 5 минут!", "pause_after": 0.3},
+    {"who": "lera", "text": "Ты это говорила 40 минут назад.", "pause_after": 0.35},
+    {"who": "yana", "text": "Я уже выехала.", "pause_after": 0.25},
+    {"who": "lera", "text": "Из дома?", "pause_after": 0.45},
+    {"who": "yana", "text": "Ну... в мыслях да.", "pause_after": 0.4},
+    {"who": "lera", "text": "Яна, ты хотя бы одета?", "pause_after": 0.3},
+    {"who": "yana", "text": "Конечно. Колготки уже в руках.", "pause_after": 0.35},
+    {"who": "lera", "text": "Это называется «не одета».", "pause_after": 0.25},
+    {"who": "yana", "text": "Это называется «начала процесс».", "pause_after": 0.4},
+    {"who": "lera", "text": "Я заказала тебе кофе. Он остыл. Я его выпила. Заказала новый. Он тоже остыл.", "pause_after": 0.35},
+    {"who": "yana", "text": "Ты там хоть не скучаешь?", "pause_after": 0.3},
+    {"who": "lera", "text": "Мы с официантом уже на «ты». Он мне про бывшую рассказал.", "pause_after": 0.3},
+    {"who": "yana", "text": "О, значит, я вовремя!", "pause_after": 0.3},
+    {"who": "lera", "text": "Ты ещё даже не вышла.", "pause_after": 0.3},
+    {"who": "yana", "text": "Зато я морально с тобой.", "pause_after": 0.3},
+    {"who": "lera", "text": "Морально ты платишь за кофе.", "pause_after": 0.3},
+    {"who": "yana", "text": "Эй, так нечестно!", "pause_after": 0.2},
+    {"who": "yana", "text": "Всё, выхожу. Ой, а где помада?", "pause_after": 0.4},
+    {"who": "lera", "text": "Я ухожу.", "pause_after": 0.25},
+    {"who": "yana", "text": "Подожди, я уже в подъезде!", "pause_after": 0.3},
+    {"who": "lera", "text": "В каком? В своём?", "pause_after": 0.6},
+    {"who": "yana", "text": "...да", "tts": "...да.", "pause_after": 0.5}
+  ]
+}
