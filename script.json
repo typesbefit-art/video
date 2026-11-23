@@ -1,0 +1,24 @@
+{
+  "hook": "Начальник пишет в 23:00:\n\"Ты не спишь?\"",
+  "contact_name": "Начальник",
+  "start_time": "23:00",
+  "final_typing_seconds": 3.0,
+  "cta": "Подписывайся на\n«Прочитано и проигнорировано»",
+  "lines": [
+    {"who": "boss", "text": "Привет. Ты не спишь?", "pause_after": 0.5},
+    {"who": "employee", "text": "Сплю.", "pause_after": 0.6},
+    {"who": "boss", "text": "Отлично. Можешь выйти в субботу?", "pause_after": 0.5},
+    {"who": "employee", "text": "Мне нужно подумать.", "pause_after": 0.4},
+    {"who": "boss", "text": "Думай быстро, у меня уже решено.", "pause_after": 0.5},
+    {"who": "employee", "text": "Тогда зачем вы спрашиваете?", "pause_after": 0.4},
+    {"who": "boss", "text": "Чтобы ты чувствовала, что у тебя есть выбор.", "pause_after": 0.5},
+    {"who": "employee", "text": "Выбор отказаться?", "pause_after": 0.4},
+    {"who": "boss", "text": "Нет, выбор: во сколько приехать.", "pause_after": 0.6},
+    {"who": "employee", "text": "А оплата?", "pause_after": 0.5},
+    {"who": "boss", "text": "Ты получишь ценный опыт и мой искренний респект.", "pause_after": 0.5},
+    {"who": "employee", "text": "Респектом аренду не оплатить.", "pause_after": 0.5},
+    {"who": "boss", "text": "Пока не пробовала. До встречи в субботу.", "pause_after": 0.6},
+    {"who": "employee", "text": "Я пишу заявление.", "pause_after": 0.8},
+    {"who": "boss", "text": "Прочитано.", "pause_after": 0.5}
+  ]
+}
