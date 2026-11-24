@@ -505,6 +505,130 @@ def assemble_voice(segs, synth, pauses, cfg):
     return voice, words, cursor, spans
 
 
+# ── Готовая озвучка (ElevenLabs и т.п.): привязка известного текста к звуку ──
+
+_VOWELS = set("аеёиоуыэюяaeiouy")
+
+
+def word_weight(tok):
+    """Примерная длительность слова в «слогах»."""
+    n = norm(tok)
+    v = sum(1 for ch in n if ch in _VOWELS)
+    if v == 0:
+        digits = sum(ch.isdigit() for ch in n)
+        v = 2 * digits if digits else 1
+    return v + 0.6
+
+
+def speech_regions(a, hop=480):
+    fr = 20 * np.log10(np.sqrt(np.mean(a[: len(a) // hop * hop].reshape(-1, hop) ** 2, 1)) + 1e-9)
+    thr = max(-55.0, float(np.percentile(fr, 95)) - 38)
+    sp = fr > thr
+    dt = hop / SR
+    reg, i = [], 0
+    while i < len(sp):
+        if sp[i]:
+            j = i
+            while j < len(sp) and sp[j]:
+                j += 1
+            reg.append([i * dt, j * dt])
+            i = j
+        else:
+            i += 1
+    merged = []
+    for r in reg:
+        if merged and r[0] - merged[-1][1] < 0.12:
+            merged[-1][1] = r[1]
+        else:
+            merged.append(r)
+    return [r for r in merged if r[1] - r[0] > 0.06]
+
+
+def align_segments(regions, weights, beta=1.2):
+    """Делит участки речи на len(weights) фраз: границы — по паузам,
+    длительности — пропорционально весу фразы (динамическое программирование)."""
+    M, N = len(regions), len(weights)
+    if M < N:
+        return None
+    dur = [r[1] - r[0] for r in regions]
+    cum = np.concatenate([[0], np.cumsum(dur)])
+    k = cum[-1] / sum(weights)
+    gaps = [0.0] + [regions[j][0] - regions[j - 1][1] for j in range(1, M)]
+    INF = 1e18
+    f = np.full((N + 1, M + 1), INF)
+    back = np.zeros((N + 1, M + 1), int)
+    f[0][0] = 0
+    for i in range(1, N + 1):
+        for b in range(i, M - (N - i) + 1):
+            best, arg = INF, 0
+            for a in range(i - 1, b):
+                if f[i - 1][a] >= INF:
+                    continue
+                d = cum[b] - cum[a]
+                c = f[i - 1][a] + math.log(max(d, 1e-3) / (k * weights[i - 1])) ** 2
+                if a > 0:
+                    c -= beta * min(gaps[a], 1.0)
+                if c < best:
+                    best, arg = c, a
+            f[i][b], back[i][b] = best, arg
+    bounds, b = [], M
+    for i in range(N, 0, -1):
+        a = back[i][b]
+        bounds.append((a, b))
+        b = a
+    return bounds[::-1]
+
+
+def external_voice(path, title, story_segs, cfg):
+    """Готовый файл озвучки: тайминги слов получаем привязкой текста к паузам."""
+    segs = voice_segments(title, story_segs)
+    a = decode_audio(Path(path))
+    regions = speech_regions(a)
+    seg_toks = []
+    for s in segs:
+        toks = [t for t in s["text"].split() if norm(t)]
+        seg_toks.append(toks)
+    weights = [sum(word_weight(t) for t in toks) for toks in seg_toks]
+    bounds = align_segments(regions, weights)
+    if bounds is None:
+        sys.exit("В озвучке меньше пауз, чем фраз в тексте — проверьте, что текст совпадает с файлом.")
+    words, spans = [], []
+    for si, (s, toks, (ra, rb)) in enumerate(zip(segs, seg_toks, bounds)):
+        regs = regions[ra:rb]
+        total = sum(r[1] - r[0] for r in regs)
+        ws = [word_weight(t) for t in toks]
+        W_ = sum(ws)
+
+        def at(x):  # доля «речевого» времени фразы -> абсолютное время
+            x *= total
+            for r in regs:
+                d = r[1] - r[0]
+                if x <= d:
+                    return r[0] + x
+                x -= d
+            return regs[-1][1]
+
+        acc = 0.0
+        disp = list(toks)
+        if s.get("quote") and disp:
+            if s.get("q_first"):
+                disp[0] = "«" + disp[0]
+            if s.get("q_last"):
+                disp[-1] = disp[-1].rstrip(".") + "»"
+        for tok, w, d in zip(toks, ws, disp):
+            st, en = at(acc / W_), at((acc + w) / W_)
+            acc += w
+            raw = re.sub(r"^[«\"(„]+|[»\",.:;!?)…]+$", "", tok)
+            words.append({"text": d, "raw": raw, "norm": norm(tok), "start": st, "end": en,
+                          "sent": si, "title": s["is_title"], "speaker": s["speaker"]})
+        sc = speaker_cfg(cfg, s["speaker"])
+        spans.append({"start": regs[0][0], "end": regs[-1][1], "speaker": s["speaker"],
+                      "fx": sc.get("fx", "none"), "first": bool(s.get("q_first", True)),
+                      "last": bool(s.get("q_last", True)), "text": s["text"]})
+    voice_end = regions[-1][1] + 0.05
+    return a, words, voice_end, spans
+
+
 def end_tail(cfg):
     e = cfg.get("end", {})
     if e.get("card_on_black"):
@@ -2243,6 +2367,8 @@ def main():
     ap.add_argument("--bg", default=str(ROOT / "bg"), help="папка с фоновыми видео")
     ap.add_argument("--workers", type=int, default=max(1, (os.cpu_count() or 2)))
     ap.add_argument("--seed", type=int, default=None, help="зерно случайности (фон, звук)")
+    ap.add_argument("--voice", default=None,
+                    help="готовый файл озвучки (mp3/wav), например из ElevenLabs — вместо edge-tts")
     ap.add_argument("--keep-temp", action="store_true")
     args = ap.parse_args()
 
@@ -2269,8 +2395,16 @@ def main():
     n_q = sum(1 for s in segs if s["speaker"] != "narrator")
     log(f"История «{title}»: {len(segs)} фраз, из них реплик персонажей: {n_q}")
 
-    voice, words, voice_end, rates, spans = build_voice_fitted(title, segs, cfg, cache_dir)
-    log(f"  голос: {voice_end:.1f} с, слов с таймингами: {len(words)}")
+    if args.voice:
+        log(f"Озвучка из файла: {args.voice} — привязываю текст к паузам")
+        voice, words, voice_end, spans = external_voice(args.voice, title, segs, cfg)
+        total = voice_end + end_tail(cfg)
+        log(f"  голос: {voice_end:.1f} с, ролик: {max(total, cfg['duration']['min']):.1f} с")
+        if total > cfg["duration"]["max"]:
+            log(f"  ! ролик длиннее {cfg['duration']['max']} с — сократите паузы в озвучке")
+    else:
+        voice, words, voice_end, rates, spans = build_voice_fitted(title, segs, cfg, cache_dir)
+        log(f"  голос: {voice_end:.1f} с, слов с таймингами: {len(words)}")
 
     tl = build_timeline(words, voice_end, spans, cfg, fps)
     T = tl["T"]
