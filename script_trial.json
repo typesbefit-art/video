@@ -12,32 +12,112 @@
     {
       "who": "courier",
       "text": "Я с заказом. Стою у двери.",
-      "pause_after": 0.3
+      "pause_after": 0.3,
+      "say": [
+        "Я с заказом.",
+        {
+          "gap": 0.3
+        },
+        {
+          "text": "Стою у двери.",
+          "rate": -8,
+          "pitch": -4
+        }
+      ]
     },
     {
       "who": "client",
       "text": "Вижу вас в глазок. Подождите, я без макияжа.",
-      "pause_after": 0.3
+      "pause_after": 0.3,
+      "say": [
+        {
+          "text": "Вижу вас в глазок!",
+          "rate": 8,
+          "pitch": 6
+        },
+        {
+          "gap": 0.1
+        },
+        {
+          "text": "Подождите, я без макияжа!",
+          "rate": 14,
+          "pitch": 14,
+          "fx": "wobble"
+        }
+      ]
     },
     {
       "who": "courier",
       "text": "Я курьер. Видел и не такое.",
-      "pause_after": 0.4
+      "pause_after": 0.4,
+      "say": [
+        {
+          "text": "Я курьер.",
+          "rate": -6
+        },
+        {
+          "gap": 0.5
+        },
+        {
+          "text": "Видел... и не такое.",
+          "rate": -16,
+          "pitch": -6
+        }
+      ]
     },
     {
       "who": "client",
       "text": "Дайте пять минут!",
-      "pause_after": 0.3
+      "pause_after": 0.3,
+      "say": [
+        {
+          "text": "Дайте пять минут!",
+          "rate": 18,
+          "pitch": 16,
+          "fx": "chipmunk",
+          "fx_amount": 0.6
+        }
+      ]
     },
     {
       "who": "courier",
       "text": "У меня мороженое тает.",
-      "pause_after": 0.4
+      "pause_after": 0.4,
+      "say": [
+        {
+          "text": "У меня мороженое",
+          "rate": -4
+        },
+        {
+          "gap": 0.35
+        },
+        {
+          "text": "тает.",
+          "rate": -20,
+          "pitch": -4,
+          "fx": "melt"
+        }
+      ]
     },
     {
       "who": "client",
       "text": "Какое мороженое? Я суши заказывала.",
-      "pause_after": 0.3
+      "pause_after": 0.3,
+      "say": [
+        {
+          "text": "Какое мороженое?!",
+          "rate": 10,
+          "pitch": 20
+        },
+        {
+          "gap": 0.12
+        },
+        {
+          "text": "Я суши заказывала!",
+          "rate": 14,
+          "pitch": 10
+        }
+      ]
     }
   ]
 }

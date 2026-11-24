@@ -39,14 +39,14 @@ SR = 44100  # частота дискретизации звука
 VOICES = {
     "courier": {
         "voice": "ru-RU-DmitryNeural",
-        "rate_start": -8, "rate_end": -10,      # %, медленно и устало
-        "pitch_start": -4, "pitch_end": -6,     # Hz, ниже и монотоннее
+        "rate_start": -4, "rate_end": -6,       # %, невозмутимо и устало
+        "pitch_start": -8, "pitch_end": -10,    # Hz, низко и монотонно
         "volume_start": 0, "volume_end": 0,     # %
     },
     "client": {
         "voice": "ru-RU-SvetlanaNeural",
-        "rate_start": 4, "rate_end": 26,        # быстрее к концу
-        "pitch_start": 0, "pitch_end": 14,      # выше = нервнее
+        "rate_start": 6, "rate_end": 20,        # быстрее к концу
+        "pitch_start": 6, "pitch_end": 18,      # выше = нервнее
         "volume_start": 0, "volume_end": 10,
     },
 }
@@ -98,6 +98,7 @@ TIMING = {
     "beat_bpm": 92,
     "beat_volume": 0.22,    # громкость фонового бита (0..1)
     "pop_volume": 0.22,
+    "sfx_volume": 0.45,     # комедийные звуки (ба-дум-тсс, грустный тромбон…)
 }
 
 FONT_DIR = "/usr/share/fonts/opentype/inter"
@@ -267,7 +268,8 @@ def fmt_hz(v):
 # ──────────────────────────── ВЫРАВНИВАНИЕ СЛОВ ───────────────────────────
 
 def _norm(s):
-    return re.sub(r"[^\wёЁ]+", "", s.lower().replace("ё", "е"))
+    s = re.sub(r"[^\wёЁ]+", "", s.lower().replace("ё", "е"))
+    return re.sub(r"(.)\1+", r"\1", s)
 
 
 def align_words(display_words, boundaries, total_dur):
@@ -399,6 +401,10 @@ def build_audio(tl, path):
         add(voice, sig / peak * 0.85, m["show"])
         pop = make_pop(1050, 560) if m["who"] == "client" else make_pop(820, 430)
         add(fx, pop, m["show"], TIMING["pop_volume"])
+        if m.get("sfx"):
+            sfx = m["sfx"] if isinstance(m["sfx"], dict) else {"name": m["sfx"]}
+            at = {"before": m["typing_start"], "start": m["show"]}.get(sfx.get("at", "end"), m["voice_end"])
+            add(fx, make_sfx(sfx["name"]), at + sfx.get("offset", 0.0), TIMING["sfx_volume"] * sfx.get("volume", 1.0))
     add(fx, make_pop(1300, 700, 0.09), tl["outro_start"], TIMING["pop_volume"] * 1.2)
 
     beat = make_beat(n / SR, TIMING["beat_bpm"])[:n] * TIMING["beat_volume"]
@@ -424,6 +430,147 @@ def build_audio(tl, path):
         wf.writeframes(stereo.tobytes())
 
 
+
+# ─────────────────────── СМЕШНАЯ ИНТОНАЦИЯ И ЭФФЕКТЫ ──────────────────────
+
+def time_warp(x, rate):
+    """Плёночное изменение скорости: rate[i] — скорость чтения исходника в i-м
+    выходном сэмпле (>1 — быстрее и выше, <1 — медленнее и ниже).
+    Возвращает (новый сигнал, функцию пересчёта времени исходник→результат)."""
+    pos = np.concatenate([[0.0], np.cumsum(rate)[:-1]])
+    pos = pos[pos < len(x) - 1]
+    y = np.interp(pos, np.arange(len(x)), x).astype(np.float32)
+    out_t = np.arange(len(pos)) / SR
+    src_t = pos / SR
+    return y, (lambda t: float(np.interp(t, src_t, out_t)))
+
+
+def voice_fx(x, name, amount=1.0):
+    """wobble — дрожащий от паники голос; melt — голос «тает» и сползает вниз;
+    chipmunk — ускорение и писк; slowmo — замедление и бас."""
+    n_max = int(len(x) * 2) + SR
+    t = np.arange(n_max) / SR
+    if name == "wobble":
+        rate = 1 + 0.07 * amount * np.sin(2 * np.pi * 7.5 * t)
+    elif name == "melt":
+        dur = len(x) / SR
+        k = np.clip(t / max(0.1, dur), 0, 1)
+        rate = 1 - 0.38 * amount * k ** 1.6
+        rate = np.maximum(rate, 0.5)
+    elif name == "chipmunk":
+        rate = np.full(n_max, 1 + 0.18 * amount)
+    elif name == "slowmo":
+        rate = np.full(n_max, 1 - 0.2 * amount)
+    else:
+        raise ValueError(f"Неизвестный эффект голоса: {name}")
+    return time_warp(x, rate)
+
+
+def _tone(freqs, dur, wave="saw", vib=0.0):
+    n = int(SR * dur)
+    t = np.arange(n) / SR
+    f = np.interp(t, np.linspace(0, dur, len(freqs)), freqs) * (1 + vib * np.sin(2 * np.pi * 5.5 * t))
+    ph = 2 * np.pi * np.cumsum(f) / SR
+    if wave == "saw":
+        sig = sum(np.sin(k * ph) / k for k in range(1, 9))
+    else:
+        sig = np.sin(ph)
+    return sig.astype(np.float32)
+
+
+def make_sfx(name):
+    rng = np.random.default_rng(3)
+    if name == "rimshot":  # ба-дум-тсс
+        out = np.zeros(int(SR * 1.3), np.float32)
+        for at, f in [(0.0, 190), (0.17, 140)]:
+            d = _tone([f * 1.3, f], 0.25, "sine") * np.exp(-np.arange(int(SR * .25)) / SR * 14)
+            i = int(at * SR); out[i:i + len(d)] += d * 0.8
+        n = int(SR * 0.9)
+        cym = np.diff(rng.standard_normal(n + 1)).astype(np.float32) * np.exp(-np.arange(n) / SR * 4)
+        i = int(0.36 * SR); out[i:i + n] += cym * 0.25
+        return out
+    if name == "sad_trombone":  # вау-вау-вау-ваааа
+        notes = [(311, 0.32), (294, 0.32), (277, 0.32), (262, 1.1)]
+        parts = []
+        for k, (f, d) in enumerate(notes):
+            tone = _tone([f, f * 0.98], d, "saw", vib=0.03 if k == 3 else 0.0)
+            env = np.minimum(1, np.arange(len(tone)) / (0.04 * SR)) * np.minimum(1, (len(tone) - np.arange(len(tone))) / (0.08 * SR))
+            parts.append(tone * env)
+        sig = np.concatenate(parts)
+        sig = np.convolve(sig, np.ones(6) / 6, mode="same")  # чуть приглушить
+        return (sig / np.abs(sig).max() * 0.6).astype(np.float32)
+    if name == "boing":
+        d = 0.6
+        t = np.arange(int(SR * d)) / SR
+        sig = _tone([180, 520, 300], d, "sine", vib=0.25) * np.exp(-t * 4)
+        return sig * 0.7
+    if name == "record_scratch":
+        d = 0.45
+        t = np.arange(int(SR * d)) / SR
+        noise = rng.standard_normal(len(t)).astype(np.float32)
+        f = np.interp(t, [0, 0.15, 0.3, d], [300, 1800, 400, 1500])
+        carrier = np.sin(2 * np.pi * np.cumsum(f) / SR)
+        sig = noise * carrier * np.minimum(1, (d - t) * 10) * 0.35
+        return np.convolve(sig, np.ones(3) / 3, mode="same").astype(np.float32)
+    if name == "crickets":  # неловкая тишина
+        out = np.zeros(int(SR * 1.6), np.float32)
+        for k in range(6):
+            at = 0.05 + k * 0.26 + (0.04 if k % 2 else 0)
+            ch = _tone([4300], 0.09, "sine") * (np.sin(np.pi * np.arange(int(SR * .09)) / (SR * .09)) ** 2)
+            ch *= (0.5 + 0.5 * np.sign(np.sin(2 * np.pi * 45 * np.arange(len(ch)) / SR)))
+            i = int(at * SR); out[i:i + len(ch)] += ch * 0.25
+        return out
+    if name == "applause":
+        n = int(SR * 2.2)
+        out = np.zeros(n, np.float32)
+        for _ in range(260):
+            at = rng.uniform(0, 1.9)
+            c = rng.standard_normal(int(SR * 0.012)).astype(np.float32) * np.exp(-np.arange(int(SR * .012)) / SR * 300)
+            i = int(at * SR); out[i:i + len(c)] += c * rng.uniform(0.1, 0.3)
+        env = np.minimum(1, np.arange(n) / (0.2 * SR)) * np.clip((n - np.arange(n)) / (0.8 * SR), 0, 1)
+        out = np.diff(np.concatenate([[0], out])) * env
+        return (out / np.abs(out).max() * 0.5).astype(np.float32)
+    raise ValueError(f"Неизвестный звук: {name}")
+
+
+def trim_silence(x, thr=0.012, keep=0.03):
+    nz = np.nonzero(np.abs(x) > thr)[0]
+    if not len(nz):
+        return x, 0.0
+    a = max(0, nz[0] - int(keep * SR))
+    b = min(len(x), nz[-1] + int(keep * SR * 2))
+    return x[a:b], a / SR
+
+
+def speak(m, voice, rate, pitch, vol):
+    """Озвучивает реплику. Если в реплике есть "say" — по сегментам, у каждого
+    своя интонация (смещение rate/pitch/volume), пауза и эффект."""
+    segs = m.get("say") or [{"text": m["text"]}]
+    pieces, bounds, t_cur = [], [], 0.0
+    for seg in segs:
+        if isinstance(seg, str):
+            seg = {"text": seg}
+        if seg.get("text"):
+            mp3, bb = synthesize(seg["text"], seg.get("voice", voice),
+                                 fmt_pct(rate + seg.get("rate", 0)),
+                                 fmt_hz(pitch + seg.get("pitch", 0)),
+                                 fmt_pct(vol + seg.get("volume", 0)))
+            a, lead = trim_silence(decode_audio(mp3))
+            remap = lambda tt: tt
+            if seg.get("fx"):
+                a, remap = voice_fx(a, seg["fx"], seg.get("fx_amount", 1.0))
+            a = a * (10 ** (seg.get("gain_db", 0) / 20))
+            for b in bb:
+                bounds.append({"text": b["text"], "start": t_cur + remap(max(0, b["start"] - lead)),
+                               "end": t_cur + remap(max(0, b["end"] - lead))})
+            pieces.append(a)
+            t_cur += len(a) / SR
+        gap = seg.get("gap", 0.0)
+        if gap:
+            pieces.append(np.zeros(int(gap * SR), np.float32))
+            t_cur += gap
+    return np.concatenate(pieces), bounds
+
 # ─────────────────────────────── ТАЙМЛАЙН ─────────────────────────────────
 
 def build_timeline(script):
@@ -444,13 +591,7 @@ def build_timeline(script):
         rate = m.get("rate", lerp(v["rate_start"], v["rate_end"], p))
         pitch = m.get("pitch", lerp(v["pitch_start"], v["pitch_end"], p))
         vol = m.get("volume", lerp(v["volume_start"], v["volume_end"], p))
-        mp3, bounds = synthesize(m["text"], m.get("voice", v["voice"]),
-                                 fmt_pct(rate), fmt_hz(pitch), fmt_pct(vol))
-        audio = decode_audio(mp3)
-        # срезаем хвостовую тишину, чтобы реплики шли бодрее
-        nz = np.nonzero(np.abs(audio) > 0.01)[0]
-        if len(nz):
-            audio = audio[:min(len(audio), nz[-1] + int(0.08 * SR))]
+        audio, bounds = speak(m, m.get("voice", v["voice"]), rate, pitch, vol)
         dur = len(audio) / SR
         words = m["text"].split()
         starts = align_words(words, bounds, dur)
@@ -458,7 +599,7 @@ def build_timeline(script):
                        TIMING["typing_min"], TIMING["typing_max"])
         out.append({"who": who, "text": m["text"], "audio": audio, "dur": dur,
                     "words": words, "word_starts": starts, "typing": typing,
-                    "pause": float(m.get("pause_after", 0.3))})
+                    "pause": float(m.get("pause_after", 0.3)), "sfx": m.get("sfx")})
         print(f"  {i + 1:2d}. {who:7s} {dur:4.1f}s  rate {fmt_pct(rate)} pitch {fmt_hz(pitch)}  {m['text']}")
 
     def total_len():
