@@ -170,9 +170,9 @@ def run(cmd, **kw):
     return subprocess.run(cmd, check=True, **kw)
 
 
-def decode_audio(path, sr):
-    out = run([FFMPEG, "-v", "error", "-i", str(path), "-f", "f32le", "-ac", "1",
-               "-ar", str(sr), "-"], capture_output=True).stdout
+def decode_audio(path, sr, af=None):
+    out = run([FFMPEG, "-v", "error", "-i", str(path)] + (["-af", af] if af else []) +
+              ["-f", "f32le", "-ac", "1", "-ar", str(sr), "-"], capture_output=True).stdout
     return np.frombuffer(out, dtype=np.float32).copy()
 
 
@@ -282,8 +282,126 @@ async def _tts_one(text, voice, rate, pitch, cache, sem):
         raise RuntimeError(f"edge-tts не ответил для «{text[:40]}…»: {last_err}")
 
 
+AUDIO_EXT = (".wav", ".mp3", ".m4a", ".ogg", ".flac", ".aac", ".opus")
+VOWELS = set("аеёиоуыэюяaeiouy")
+
+
+def find_recordings(name):
+    """voice/<name>/01.wav … или один файл voice/<name>.wav"""
+    d = ROOT / "voice" / name
+    if d.is_dir():
+        files = sorted(p for p in d.iterdir() if p.suffix.lower() in AUDIO_EXT)
+        if files:
+            return {"files": files}
+    for ext in AUDIO_EXT:
+        f = ROOT / "voice" / f"{name}{ext}"
+        if f.exists():
+            return {"single": f}
+    return None
+
+
+def _frame_energy(x, sr, ms=10):
+    fr = max(1, int(sr * ms / 1000))
+    n = max(1, len(x) // fr)
+    e = np.sqrt(np.mean(x[: n * fr].reshape(n, fr).astype(np.float64) ** 2, axis=1) + 1e-12)
+    e = np.convolve(e, np.ones(3) / 3, mode="same")
+    thr = max(np.percentile(e, 10) * 2.5, e.max() * db(-38))
+    return e, thr, fr
+
+
+def split_by_silence(x, sr, n):
+    """Режет одну запись на n фраз по n-1 самым длинным паузам."""
+    if n <= 1:
+        return [x]
+    e, thr, fr = _frame_energy(x, sr)
+    quiet = e < thr
+    runs, i = [], 0
+    while i < len(quiet):
+        if quiet[i]:
+            j = i
+            while j < len(quiet) and quiet[j]:
+                j += 1
+            if i > 0 and j < len(quiet):
+                runs.append((j - i, i, j))
+            i = j
+        else:
+            i += 1
+    runs = [r for r in runs if r[0] * fr / sr >= 0.3]
+    if len(runs) < n - 1:
+        raise SystemExit(f"[voice] в записи нашлось только {len(runs) + 1} фраз(ы) вместо {n}: "
+                         f"сделай паузы между фразами не короче 1 секунды или пришли по файлу на фразу")
+    cuts = sorted(((a + b) // 2) * fr for _, a, b in sorted(runs, reverse=True)[: n - 1])
+    bounds = [0] + cuts + [len(x)]
+    return [x[bounds[k]:bounds[k + 1]] for k in range(n)]
+
+
+def trim_silence(x, sr):
+    e, thr, fr = _frame_energy(x, sr)
+    idx = np.nonzero(e > thr)[0]
+    if not len(idx):
+        return x
+    a = max(0, idx[0] * fr - int(0.04 * sr))
+    b = min(len(x), (idx[-1] + 1) * fr + int(0.10 * sr))
+    y = x[a:b].copy()
+    f = min(len(y), int(0.02 * sr))
+    if f:
+        y[:f] *= np.linspace(0, 1, f, dtype=np.float32)
+        y[-f:] *= np.linspace(1, 0, f, dtype=np.float32)
+    return y
+
+
+def estimate_words(x, sr, text):
+    """Тайминги слов без распознавания: паузы по громкости + слоги внутри речи."""
+    toks = re.findall(r"\w[\w-]*", text)
+    if not toks:
+        return []
+    e, thr, fr = _frame_energy(x, sr)
+    voiced = e > thr
+    cum = np.cumsum(voiced)
+    total = max(int(cum[-1]), 1)
+    wts = [sum(ch in VOWELS for ch in t.lower()) + 0.35 for t in toks]
+    edges = np.cumsum([0.0] + wts) / sum(wts) * total
+    idx = np.searchsorted(cum, np.maximum(edges, 1), side="left")
+    idx[0] = np.argmax(voiced) if voiced.any() else 0
+    out = []
+    for k, t in enumerate(toks):
+        st, en = idx[k] * fr / sr, max(idx[k + 1], idx[k] + 1) * fr / sr
+        out.append([t, float(st), float(en)])
+    return out
+
+
+def load_recorded(segments, cfg, rate_shift, sr):
+    rec = cfg["_recorded"]
+    v = cfg["voice"]
+    tempo = min(1.08, max(0.94, 1 + rate_shift / 100.0))
+    af = f"highpass=f=70,atempo={tempo:.3f}" if abs(tempo - 1) > 1e-3 else "highpass=f=70"
+    n = len(segments)
+    if "files" in rec:
+        files = rec["files"]
+        by_num = {}
+        for f in files:
+            m = re.match(r"0*(\d+)", f.stem)
+            if m:
+                by_num.setdefault(int(m.group(1)), f)
+        missing = [k for k in range(1, n + 1) if k not in by_num]
+        if missing:
+            raise SystemExit(f"[voice] нет файлов для фраз: {missing} (ожидаю {n} файлов 01…{n:02d})")
+        raws = [decode_audio(by_num[k], sr, af) for k in range(1, n + 1)]
+    else:
+        raws = split_by_silence(decode_audio(rec["single"], sr, af), sr, n)
+    out = []
+    for s, x in zip(segments, raws):
+        x = trim_silence(x, sr)
+        words = estimate_words(x, sr, s["text"])
+        out.append({**s, "audio": x, "words": words, "dur": len(x) / sr,
+                    "whisper": v.get("recorded_quote_whisper", 0.25)})
+    return out
+
+
 def synthesize(segments, cfg, rate_shift, sr):
     v = cfg["voice"]
+    if cfg.get("_recorded"):
+        return load_recorded(segments, cfg, rate_shift, sr)
     cache = ROOT / ".cache" / "tts"
     cache.mkdir(parents=True, exist_ok=True)
 
@@ -563,13 +681,14 @@ def build_audio(segs, starts, total, ev, cfg, sr, seed):
 
     # Голос
     narr_peak = max((np.max(np.abs(s["audio"])) for s in segs if not s["quote"]), default=1.0)
-    g_narr = db(a["voice_peak_db"]) / narr_peak
+    narr_act = np.mean([active_rms(s["audio"], sr) for s in segs if not s["quote"]] or [0.1])
+    g_narr = min(db(a["voice_peak_db"]) / narr_peak, db(a.get("voice_rms_db", -16.5)) / (narr_act + 1e-9))
     narr_rms = np.mean([active_rms(s["audio"] * g_narr, sr) for s in segs if not s["quote"]] or [0.1])
     voice = np.zeros(N, dtype=np.float32)
     for s, st in zip(segs, starts):
         x = s["audio"] * g_narr
         if s["quote"]:
-            x = whisperize(s["audio"], sr, v["quote_whisper"])
+            x = whisperize(s["audio"], sr, s.get("whisper", v["quote_whisper"]))
             x = x * (narr_rms * db(v["quote_level_db"]) / (active_rms(x, sr) + 1e-9))
         _place(voice, x, st, sr)
     voice_rms = active_rms(voice, sr)
@@ -1468,6 +1587,8 @@ def main():
     ap.add_argument("--duration", type=float, default=None, help="отрендерить только первые N секунд (пробная версия)")
     ap.add_argument("--config", default=str(ROOT / "config.toml"))
     ap.add_argument("--seed", type=int, default=None)
+    ap.add_argument("--voice", default=None,
+                    help="имя записи в папке voice/ (по умолчанию = имя части, для части 1 — part1)")
     ap.add_argument("--workers", type=int, default=max(1, (os.cpu_count() or 2)))
     args = ap.parse_args()
 
@@ -1495,10 +1616,18 @@ def main():
         if s["quote"]:
             print(f"        2-й голос: {s['text']}")
 
-    print("[voice] озвучка через edge-tts…")
+    rec_name = args.voice or (args.part or "part1")
+    rec = find_recordings(rec_name)
+    if rec:
+        cfg["_recorded"] = rec
+        src = rec.get("single") or rec["files"][0].parent
+        print(f"[voice] беру свою озвучку: {Path(src).relative_to(ROOT) if str(src).startswith(str(ROOT)) else src}")
+    else:
+        print("[voice] озвучка через edge-tts…")
     segs, starts, voice_end, total, pause, rate_shift = fit_duration(segments, cfg, sr)
     if rate_shift or abs(pause - cfg["voice"]["pause"]) > 1e-3:
-        print(f"[voice] подогнал длину: пауза {pause:.2f} с, темп {rate_shift:+d}%")
+        what = "ускорение записи" if cfg.get("_recorded") else "темп"
+        print(f"[voice] подогнал длину: пауза {pause:.2f} с, {what} {rate_shift:+d}%")
 
     words = []
     for si, (s, st) in enumerate(zip(segs, starts)):
@@ -1517,7 +1646,7 @@ def main():
     r2 = lambda v: round(v, 2) if isinstance(v, float) else v  # noqa: E731
     for k in ("music", "flash", "light", "zoom", "silence", "hit", "hum", "cams", "days", "tcs", "shake", "white", "ending"):
         val = ev[k]
-        if val in (None, []):
+        if val is None or (isinstance(val, list) and not val):
             continue
         if isinstance(val, list):
             val = [({kk: r2(vv) for kk, vv in x.items()} if isinstance(x, dict) else
