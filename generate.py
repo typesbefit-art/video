@@ -579,54 +579,89 @@ def align_segments(regions, weights, beta=1.2):
     return bounds[::-1]
 
 
-def external_voice(path, title, story_segs, cfg):
-    """Готовый файл озвучки: тайминги слов получаем привязкой текста к паузам."""
+def speaker_blocks(segs):
+    """Подряд идущие фразы одного голоса -> блоки (один блок = один файл озвучки)."""
+    blocks = []
+    for i, s in enumerate(segs):
+        if blocks and segs[blocks[-1][-1]]["speaker"] == s["speaker"]:
+            blocks[-1].append(i)
+        else:
+            blocks.append([i])
+    return blocks
+
+
+def external_voice(paths, title, story_segs, cfg):
+    """Готовая озвучка (один файл на всю часть или по файлу на каждый блок реплик).
+    Тайминги слов — привязкой известного текста к паузам; ключевые паузы
+    растягиваются до значений из конфига, на реплики с fx=radio накладывается рация."""
     segs = voice_segments(title, story_segs)
-    a = decode_audio(Path(path))
-    regions = speech_regions(a)
-    seg_toks = []
-    for s in segs:
-        toks = [t for t in s["text"].split() if norm(t)]
-        seg_toks.append(toks)
-    weights = [sum(word_weight(t) for t in toks) for toks in seg_toks]
-    bounds = align_segments(regions, weights)
-    if bounds is None:
-        sys.exit("В озвучке меньше пауз, чем фраз в тексте — проверьте, что текст совпадает с файлом.")
-    words, spans = [], []
-    for si, (s, toks, (ra, rb)) in enumerate(zip(segs, seg_toks, bounds)):
-        regs = regions[ra:rb]
-        total = sum(r[1] - r[0] for r in regs)
-        ws = [word_weight(t) for t in toks]
-        W_ = sum(ws)
+    pauses, kinds = segment_pauses(segs, cfg)
+    if len(paths) == 1:
+        blocks = [list(range(len(segs)))]
+    else:
+        blocks = speaker_blocks(segs)
+        if len(blocks) != len(paths):
+            desc = "\n".join(f"  {k + 1}. {segs[b[0]]['speaker']}: {segs[b[0]]['text'][:50]}…"
+                             for k, b in enumerate(blocks))
+            sys.exit(f"Файлов озвучки {len(paths)}, а блоков реплик {len(blocks)}:\n{desc}")
+    rng = np.random.default_rng(99)
+    synth = [None] * len(segs)
+    natural = [None] * len(segs)  # естественная пауза перед фразой внутри файла
+    for blk, path in zip(blocks, paths):
+        a = decode_audio(Path(path))
+        regions = speech_regions(a)
+        toks_list = [[t for t in segs[i]["text"].split() if norm(t)] for i in blk]
+        weights = [sum(word_weight(t) for t in toks) for toks in toks_list]
+        bounds = align_segments(regions, weights)
+        if bounds is None:
+            sys.exit(f"{path}: пауз меньше, чем фраз — проверьте, что текст совпадает с файлом.")
+        for j, (i, toks, (ra, rb)) in enumerate(zip(blk, toks_list, bounds)):
+            regs = regions[ra:rb]
+            c0 = max(0.0, regs[0][0] - 0.03)
+            c1 = min(len(a) / SR, regs[-1][1] + 0.08)
+            if j > 0:
+                natural[i] = max(0.0, regs[0][0] - regions[ra - 1][1] - 0.11)
+            clip = a[int(c0 * SR):int(c1 * SR)].copy()
+            if speaker_cfg(cfg, segs[i]["speaker"]).get("fx") == "radio":
+                clip = radio_fx(clip, rng)
+            fade = min(len(clip) // 2, int(0.01 * SR))
+            clip[:fade] *= np.linspace(0, 1, fade)
+            clip[-fade:] *= np.linspace(1, 0, fade)
+            total = sum(r[1] - r[0] for r in regs)
+            ws = [word_weight(t) for t in toks]
+            W_ = sum(ws)
 
-        def at(x):  # доля «речевого» времени фразы -> абсолютное время
-            x *= total
-            for r in regs:
-                d = r[1] - r[0]
-                if x <= d:
-                    return r[0] + x
-                x -= d
-            return regs[-1][1]
+            def at(x, regs=regs, total=total):
+                x *= total
+                for r in regs:
+                    d = r[1] - r[0]
+                    if x <= d:
+                        return r[0] + x
+                    x -= d
+                return regs[-1][1]
 
-        acc = 0.0
-        disp = list(toks)
-        if s.get("quote") and disp:
-            if s.get("q_first"):
-                disp[0] = "«" + disp[0]
-            if s.get("q_last"):
-                disp[-1] = disp[-1].rstrip(".") + "»"
-        for tok, w, d in zip(toks, ws, disp):
-            st, en = at(acc / W_), at((acc + w) / W_)
-            acc += w
-            raw = re.sub(r"^[«\"(„]+|[»\",.:;!?)…]+$", "", tok)
-            words.append({"text": d, "raw": raw, "norm": norm(tok), "start": st, "end": en,
-                          "sent": si, "title": s["is_title"], "speaker": s["speaker"]})
-        sc = speaker_cfg(cfg, s["speaker"])
-        spans.append({"start": regs[0][0], "end": regs[-1][1], "speaker": s["speaker"],
-                      "fx": sc.get("fx", "none"), "first": bool(s.get("q_first", True)),
-                      "last": bool(s.get("q_last", True)), "text": s["text"]})
-    voice_end = regions[-1][1] + 0.05
-    return a, words, voice_end, spans
+            acc, wb = 0.0, []
+            for tok, w in zip(toks, ws):
+                st, en = at(acc / W_), at((acc + w) / W_)
+                acc += w
+                raw = re.sub(r"^[«\"(„]+|[»\",.:;!?)…—–-]+$", "", tok)
+                wb.append({"text": raw, "offset": st - c0, "duration": en - st})
+            synth[i] = (clip, wb)
+    for i in range(1, len(segs)):
+        if natural[i] is not None:  # внутри одного файла
+            pauses[i] = max(natural[i], pauses[i]) if kinds[i] == "key" else max(0.2, natural[i])
+    # не влезаем в duration.max — укорачиваем длинные паузы (не короче 0,9 с)
+    total = VOICE_LEAD + sum(pauses) + sum(len(c) / SR for c, _ in synth) + end_tail(cfg)
+    over = total - cfg["duration"]["max"]
+    long_p = [i for i in range(1, len(segs)) if pauses[i] > 0.9]
+    if over > 0 and long_p:
+        room = sum(pauses[i] - 0.9 for i in long_p)
+        k = min(1.0, over / room) if room > 0 else 0
+        for i in long_p:
+            pauses[i] -= (pauses[i] - 0.9) * k
+        log(f"  длинные паузы укорочены на {min(over, room):.1f} с, чтобы уложиться в {cfg['duration']['max']} с")
+    voice, words, end, spans = assemble_voice(segs, synth, pauses, cfg)
+    return voice, words, end, spans
 
 
 def end_tail(cfg):
@@ -2367,7 +2402,7 @@ def main():
     ap.add_argument("--bg", default=str(ROOT / "bg"), help="папка с фоновыми видео")
     ap.add_argument("--workers", type=int, default=max(1, (os.cpu_count() or 2)))
     ap.add_argument("--seed", type=int, default=None, help="зерно случайности (фон, звук)")
-    ap.add_argument("--voice", default=None,
+    ap.add_argument("--voice", default=None, nargs="+",
                     help="готовый файл озвучки (mp3/wav), например из ElevenLabs — вместо edge-tts")
     ap.add_argument("--keep-temp", action="store_true")
     args = ap.parse_args()

@@ -21,9 +21,9 @@
   },
   "end": {
     "card_on_black": true,
-    "gap": 0.4,
-    "fade": 2.6,
-    "card": 1.8
+    "gap": 0.2,
+    "fade": 2.2,
+    "card": 1.5
   },
   "cues": {
     "clicks_from": "",
