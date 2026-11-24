@@ -328,9 +328,9 @@ def tts_cached(text, voice, rate, pitch, cache_dir: Path):
         return mp3, json.loads(js.read_text(encoding="utf-8"))
     last = None
     r0 = int(rate.rstrip("%"))
-    for attempt in range(12):
+    for attempt in range(30):
         # сервис иногда стабильно «не любит» конкретную пару текст+темп — слегка сдвигаем темп
-        r = r0 if attempt < 5 else r0 + (1, -1, 2, -2, 1, -1, 2)[attempt - 5]
+        r = r0 if attempt < 6 or attempt % 2 == 0 else r0 + (1, -1, 2, -2)[(attempt // 2) % 4]
         try:
             audio, words = asyncio.run(_tts_request(text, voice, f"{r:+d}%", pitch))
             if not words:
@@ -340,7 +340,7 @@ def tts_cached(text, voice, rate, pitch, cache_dir: Path):
             return mp3, words
         except Exception as e:  # сервис иногда отвечает пусто — повторяем
             last = e
-            time.sleep(min(6.0, 0.6 * (1.5 ** attempt)) + random.random() * 0.5)
+            time.sleep(min(8.0, 0.6 * (1.4 ** attempt)) + random.random() * 1.0)
     sys.exit(f"edge-tts не отвечает на фразу «{text}» ({last}). Проверьте интернет и повторите запуск.")
 
 
@@ -430,7 +430,7 @@ def synth_segments(segs, rates, cfg, cache_dir):
         sc = speaker_cfg(cfg, s["speaker"])
         jobs.append((s["text"], sc["name"], f"{int(round(r)):+d}%", f"{int(sc['pitch']):+d}Hz"))
     from concurrent.futures import ThreadPoolExecutor
-    with ThreadPoolExecutor(3) as ex:
+    with ThreadPoolExecutor(2) as ex:
         results = list(ex.map(lambda j: tts_cached(*j, cache_dir), jobs))
     out = []
     rng = np.random.default_rng(99)
