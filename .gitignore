@@ -1,0 +1,4 @@
+*.mp4
+*.mov
+.cache/
+__pycache__/

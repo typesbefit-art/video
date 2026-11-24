@@ -1,0 +1,76 @@
+{
+  "voice": {
+    "name": "ru-RU-DmitryNeural",
+    "rate": -6,
+    "pitch": -3,
+    "tension_ramp": 4,
+    "max_rate": 20,
+    "min_pause": 0.3,
+    "pause": 0.5,
+    "pause_after_title": 0.5,
+    "pause_before_last": 1.5,
+    "pause_before": {
+      "И я понял: они не входят": 1.2
+    }
+  },
+
+  "duration": { "min": 50, "max": 65, "end_tail": 2.2, "fit": "auto" },
+
+  "cues": {
+    "clicks_from": "турникет щёлкнул",
+    "counter_start": "Внутри: один",
+    "counter_label": "ВНУТРИ:",
+    "silence_at": "остановился",
+    "monitors_flicker": "Все залы пусты",
+    "silhouettes": "Они уже были здесь",
+    "crowd": "Все они стояли в коридоре"
+  },
+
+  "text": {
+    "uppercase": true,
+    "words_per_screen": 4,
+    "subtitle_size": 96,
+    "subtitle_y": 0.62,
+    "keep_punct": ":?!«»…",
+    "title_seconds": 1.5,
+    "end_card": "Часть 2?\nПодписывайся",
+    "end_card_seconds": 1.5
+  },
+
+  "colors": {
+    "subtitle": [255, 255, 255],
+    "stroke": [0, 0, 0],
+    "highlight": [255, 36, 36],
+    "counter": [235, 245, 235],
+    "counter_alert": [255, 40, 40],
+    "edge_glow": [210, 10, 10],
+    "monitor_tint": [0.80, 0.95, 0.82],
+    "hud": [190, 225, 195],
+    "bg_video_tint": [0.56, 0.62, 0.74]
+  },
+
+  "audio": {
+    "hum_db": -30,
+    "steps_db": -36,
+    "clicks_db": -14,
+    "crowd_db": -40,
+    "hit_db": -10,
+    "voice_rms_db": -16
+  },
+
+  "fonts": {
+    "bold": [
+      "/usr/share/fonts/opentype/inter/Inter-ExtraBold.otf",
+      "/usr/share/fonts/truetype/inter/Inter-ExtraBold.ttf",
+      "fonts/Inter-ExtraBold.otf",
+      "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+      "C:/Windows/Fonts/arialbd.ttf",
+      "/System/Library/Fonts/Supplemental/Arial Bold.ttf"
+    ],
+    "mono": [
+      "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf",
+      "C:/Windows/Fonts/consolab.ttf",
+      "/System/Library/Fonts/Menlo.ttc"
+    ]
+  }
+}
