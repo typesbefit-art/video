@@ -258,8 +258,10 @@ async def _tts_one(text, voice, rate, pitch, cache, sem):
         last_err = None
         tries = int(os.environ.get("TTS_RETRIES", "8"))
         for attempt in range(tries):
-            # со второй половины попыток пробуем вариант без «ё» — иногда помогает
-            say = text.replace("ё", "е").replace("Ё", "Е") if attempt >= tries // 2 else text
+            # сервис иногда «залипает» на конкретной строке — пробуем равнозвучные варианты
+            noyo = text.replace("ё", "е").replace("Ё", "Е")
+            variants = [text, text.rstrip(".!?…") or text, noyo, noyo.rstrip(".!?…") or noyo, text + ".."]
+            say = variants[attempt % len(variants)]
             try:
                 words, audio = [], bytearray()
                 com = edge_tts.Communicate(say, voice, rate=rate, pitch=pitch, boundary="WordBoundary")
