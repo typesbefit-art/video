@@ -345,6 +345,63 @@ def split_by_silence(x, sr, n):
     return [x[bounds[k]:bounds[k + 1]] for k in range(n)]
 
 
+def split_aligned(x, sr, texts):
+    """Режет запись на фразы с учётом текста: разрезы — по паузам, длина кусков ≈ числу слогов.
+    Нужна, когда паузы между фразами не длиннее пауз внутри фраз (ElevenLabs игнорирует <break>)."""
+    n = len(texts)
+    if n <= 1:
+        return [x]
+    e, thr, fr = _frame_energy(x, sr)
+    voiced = e > thr
+    cum = np.concatenate([[0], np.cumsum(voiced)])
+    cands = []  # (середина паузы в кадрах, длина паузы в секундах)
+    i = 0
+    while i < len(voiced):
+        if not voiced[i]:
+            j = i
+            while j < len(voiced) and not voiced[j]:
+                j += 1
+            if i > 0 and j < len(voiced) and (j - i) * fr / sr >= 0.08:
+                cands.append(((i + j) // 2, (j - i) * fr / sr))
+            i = j
+        else:
+            i += 1
+    if len(cands) < n - 1:
+        raise SystemExit(f"[voice] в записи слишком мало пауз ({len(cands)}) для {n} фраз")
+    syl = np.array([sum(ch in VOWELS for ch in t.lower()) + 0.6 for t in texts], dtype=np.float64)
+    exp = syl / syl.sum() * cum[-1]                    # ожидаемая «звучащая» длина каждой фразы (кадры)
+    pos = [0] + [c[0] for c in cands] + [len(voiced)]
+    gap = [0.0] + [c[1] for c in cands] + [0.0]
+    M = len(pos)
+    NEG = -1e18
+    # dp[k][j]: лучший счёт, если k-я фраза заканчивается на позиции j
+    dp = np.full((n + 1, M), NEG)
+    back = np.zeros((n + 1, M), dtype=np.int64)
+    dp[0][0] = 0.0
+    for k in range(1, n + 1):
+        for j in range(1, M):
+            if k < n and j == M - 1:
+                continue
+            if k == n and j != M - 1:
+                continue
+            best, arg = NEG, -1
+            for i0 in range(k - 1, j):
+                if dp[k - 1][i0] <= NEG / 2:
+                    continue
+                v = cum[pos[j]] - cum[pos[i0]]
+                dev = (v - exp[k - 1]) / max(exp[k - 1], 25.0)
+                sc = dp[k - 1][i0] - 4.0 * dev * dev + (3.0 * gap[j] if k < n else 0.0)
+                if sc > best:
+                    best, arg = sc, i0
+            dp[k][j], back[k][j] = best, arg
+    cuts, j = [], M - 1
+    for k in range(n, 0, -1):
+        cuts.append(pos[j])
+        j = back[k][j]
+    bounds = [0] + sorted(cuts)
+    return [x[bounds[k] * fr:bounds[k + 1] * fr] for k in range(n)]
+
+
 def trim_silence(x, sr):
     e, thr, fr = _frame_energy(x, sr)
     idx = np.nonzero(e > thr)[0]
@@ -406,16 +463,16 @@ def load_recorded(segments, cfg, rate_shift, sr):
             for f in files:
                 parts += [decode_audio(f, sr, af), gap]
             return np.concatenate(parts)
-        narr = split_by_silence(load_role(rec["roles"]["narrator"]), sr, n - nq)
+        narr = split_aligned(load_role(rec["roles"]["narrator"]), sr, [sg["text"] for sg in segments if not sg["quote"]])
         fem = []
         if nq:
             if "female" not in rec["roles"]:
                 raise SystemExit(f"[voice] нужен файл с женскими репликами ({nq} шт.): voice/<часть>_female.mp3")
-            fem = split_by_silence(load_role(rec["roles"]["female"]), sr, nq)
+            fem = split_aligned(load_role(rec["roles"]["female"]), sr, [sg["text"] for sg in segments if sg["quote"]])
         it_n, it_f = iter(narr), iter(fem)
         raws = [next(it_f) if sg["quote"] else next(it_n) for sg in segments]
     else:
-        raws = split_by_silence(decode_audio(rec["single"], sr, af), sr, n)
+        raws = split_aligned(decode_audio(rec["single"], sr, af), sr, [sg["text"] for sg in segments])
     out = []
     for s, x in zip(segments, raws):
         x = trim_silence(x, sr)
@@ -699,6 +756,34 @@ def synth_static_burst(sr, dur, rng):
     return (y * gate * env).astype(np.float32)
 
 
+def compress_voice(x, sr, target_rms_db, peak_db):
+    """Мягкий компрессор голоса (блоки 5 мс, атака ~5 мс, восстановление ~80 мс) + выход на целевую громкость."""
+    blk = int(sr * 0.005)
+    nb = len(x) // blk
+    if nb < 4:
+        return x
+    r = np.sqrt(np.mean(x[: nb * blk].reshape(nb, blk).astype(np.float64) ** 2, axis=1) + 1e-12)
+    lvl = 20 * np.log10(r)
+    act = active_rms(x, sr)
+    thr = to_db(act) + 1.0                       # порог чуть выше средней громкости речи
+    gr = np.minimum(0.0, (thr - lvl) * (1 - 1 / 3.0))   # 3:1
+    rel = math.exp(-0.005 / 0.08)
+    g = np.empty_like(gr)
+    cur = 0.0
+    for k in range(nb):                          # атака мгновенная по блоку, плавное восстановление
+        cur = gr[k] if gr[k] < cur else gr[k] + (cur - gr[k]) * rel
+        g[k] = cur
+    gain = np.repeat(10 ** (g / 20), blk)
+    gain = np.concatenate([gain, np.full(len(x) - len(gain), gain[-1])]).astype(np.float32)
+    y = x * gain
+    y *= db(target_rms_db) / (active_rms(y, sr) + 1e-9)
+    lim = db(peak_db)
+    over = np.abs(y) > lim * 0.8
+    k0 = lim * 0.8
+    y[over] = np.sign(y[over]) * (k0 + (lim - k0) * np.tanh((np.abs(y[over]) - k0) / (lim - k0)))
+    return y.astype(np.float32)
+
+
 def build_audio(segs, starts, total, ev, cfg, sr, seed):
     a = cfg["audio"]
     v = cfg["voice"]
@@ -718,6 +803,7 @@ def build_audio(segs, starts, total, ev, cfg, sr, seed):
             x = whisperize(s["audio"], sr, s.get("whisper", v["quote_whisper"]))
             x = x * (narr_rms * db(v["quote_level_db"]) / (active_rms(x, sr) + 1e-9))
         _place(voice, x, st, sr)
+    voice = compress_voice(voice, sr, a.get("voice_rms_db", -16.5), a["voice_peak_db"])
     voice_rms = active_rms(voice, sr)
     vdb = to_db(voice_rms)
     stats = [("голос", vdb)]
