@@ -1,0 +1,65 @@
+{
+  "voice": {
+    "name": "ru-RU-DmitryNeural",
+    "rate": "-8%",
+    "pitch": "-4Hz",
+    "volume": "+0%",
+    "timing_helper_voice": "ru-RU-SvetlanaNeural",
+    "pause_after_sentence": 0.6,
+    "pause_after_clause": 0.3,
+    "pause_before_last_sentence": 1.5,
+    "pauses_before": {
+      "Не слушай телефон. Он говорит твоим голосом": 1.3
+    },
+    "phone_quotes": ["Слушай и не перебивай", "Иди к выходу"],
+    "phone_filter": "highpass=f=400,highpass=f=400,lowpass=f=3000,lowpass=f=3000,acompressor=threshold=0.1:ratio=3,apad=pad_dur=0.5,aecho=0.8:0.55:90|170:0.32|0.16"
+  },
+
+  "duration": { "min": 50, "max": 65, "voice_start": 1.5, "tail_before_plate": 0.7, "plate": 1.5 },
+
+  "subtitles": {
+    "font": ["/usr/share/fonts/opentype/inter/Inter-ExtraBold.otf",
+             "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+             "Inter-ExtraBold.otf", "DejaVuSans-Bold.ttf", "arialbd.ttf"],
+    "size": 96,
+    "stroke": 9,
+    "y": 0.62,
+    "max_width": 920,
+    "words_min": 3,
+    "words_max": 4,
+    "uppercase": true,
+    "color": [255, 255, 255],
+    "stroke_color": [0, 0, 0],
+    "highlight": [235, 32, 32],
+    "phone_highlight": [160, 210, 255],
+    "phone_color": [232, 243, 255]
+  },
+
+  "title":  { "size": 112, "color": [255, 255, 255], "accent": [200, 20, 20], "show": 1.5 },
+  "plate":  { "text": "Часть 2?\nПодписывайся", "size": 118, "border": [200, 20, 20] },
+
+  "background": {
+    "folder": "bg",
+    "dim": 0.6,
+    "top_color": [6, 10, 22],
+    "bottom_color": [0, 0, 3],
+    "light_color": [175, 195, 235],
+    "fog_color": [70, 85, 120]
+  },
+
+  "audio": {
+    "voice_rms_db": -14,
+    "drone_db": -28,
+    "min_voice_over_music_db": 12
+  },
+
+  "cues": [
+    { "phrase": "позвонили",              "effect": "ring" },
+    { "phrase": "скрипнула дверь",        "effect": "creak" },
+    { "phrase": "прошептал моим голосом", "effect": "whisper" },
+    { "phrase": "прошептал моим голосом", "effect": "drone_cut" },
+    { "phrase": "зазвонил снова",         "effect": "ring_quiet" },
+    { "phrase": "Не оборачивайся",        "effect": "shake" },
+    { "phrase": "двое меня",              "effect": "double" }
+  ]
+}
