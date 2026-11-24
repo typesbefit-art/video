@@ -1,0 +1,195 @@
+{
+  "voice": {
+    "pause": 0.5,
+    "pause_inline": 0.3,
+    "pause_after_title": 0.5,
+    "pause_before_last": 1.5,
+    "tension_ramp": 4,
+    "max_rate": 15,
+    "min_pause": 0.3,
+    "pause_before": {
+      "Не выходи": 1.3,
+      "Тогда счёт сойдётся по-другому": 1.3,
+      "В коридоре стояло двести четырнадцать человек": 1.3
+    }
+  },
+  "duration": {
+    "min": 55,
+    "max": 65,
+    "fit": "auto"
+  },
+  "end": {
+    "card_on_black": true,
+    "gap": 0.4,
+    "fade": 2.6,
+    "card": 1.8
+  },
+  "cues": {
+    "clicks_from": "",
+    "counter_start": "",
+    "silence_at": "",
+    "monitors_flicker": "",
+    "silhouettes": "",
+    "crowd": "",
+    "counter_label": "ВНУТРИ:"
+  },
+  "counter": {
+    "alert_at": 214,
+    "initial": 214
+  },
+  "hud": {
+    "colon_blink": false,
+    "date": "2026-11-24"
+  },
+  "text": {
+    "uppercase": true,
+    "words_per_line": 3,
+    "max_lines": 2,
+    "subtitle_size": 92,
+    "subtitle_y": 0.632,
+    "sub_shade": "gradient",
+    "gradient_from": 0.56,
+    "gradient_strength": 0.42,
+    "title_style": "pale",
+    "title_seconds": 3.0,
+    "title_fade": 0.8,
+    "title_size": 120,
+    "title_opacity": 0.55,
+    "title_y": 0.4,
+    "end_card": "Часть 3?\nПодписывайся"
+  },
+  "cameras": [
+    [
+      "CAM 01",
+      "ВХОД",
+      "entrance"
+    ],
+    [
+      "CAM 02",
+      "ГАЛЕРЕЯ 1",
+      "corridor"
+    ],
+    [
+      "CAM 03",
+      "АТРИУМ",
+      "hall"
+    ],
+    [
+      "CAM 04",
+      "ПАРКОВКА -1",
+      "parking"
+    ],
+    [
+      "CAM 05",
+      "СЛУЖ. КОРИДОР",
+      "service"
+    ],
+    [
+      "CAM 06",
+      "ФУДКОРТ",
+      "food"
+    ]
+  ],
+  "colors": {
+    "title_pale": [
+      218,
+      226,
+      218
+    ],
+    "door_tint": [
+      0.78,
+      0.92,
+      1.06
+    ]
+  },
+  "scene": {
+    "crowd_darkness": 0.55,
+    "overrides": {
+      "entrance": {
+        "cy": 0.5
+      }
+    },
+    "zoom_figure_back": 13
+  },
+  "audio": {
+    "radio_hiss_db": -36,
+    "radio_click_db": -20,
+    "tone_db": -30,
+    "drone_db": -32,
+    "static_db": -32
+  },
+  "speakers": {
+    "semyon": {
+      "name": "ru-RU-DmitryNeural",
+      "rate": -12,
+      "pitch": -6,
+      "fx": "radio"
+    }
+  },
+  "dialogue": [
+    {
+      "starts": "Не выходи",
+      "speaker": "semyon"
+    },
+    {
+      "starts": "Слушай и не перебивай",
+      "speaker": "semyon"
+    },
+    {
+      "starts": "Тогда счёт",
+      "speaker": "semyon"
+    }
+  ],
+  "clock": {
+    "start": "03:07:50",
+    "jumps": [
+      {
+        "word": "3:52",
+        "to": "03:52:00",
+        "glitch": 0.7
+      }
+    ]
+  },
+  "effects": [
+    {
+      "type": "radio_hiss",
+      "phrase": "В ответ шипение",
+      "duration": 2.2
+    },
+    {
+      "type": "cam_interference",
+      "cam": 5,
+      "phrase": "Не выходи",
+      "extend": 0.7
+    },
+    {
+      "type": "cam_interference",
+      "cam": 5,
+      "phrase": "Слушай и не перебивай",
+      "duration": 1.6
+    },
+    {
+      "type": "corridor_crowd",
+      "cam": 5,
+      "phrase": "В коридоре стояло двести четырнадцать человек",
+      "fade": 6.0
+    },
+    {
+      "type": "counter_set",
+      "phrase": "Внутри: 215",
+      "value": 215,
+      "flash": true,
+      "shake": 1.0,
+      "shake_amp": 14
+    },
+    {
+      "type": "hum_cut",
+      "phrase": "@last",
+      "tone_hz": 45
+    },
+    {
+      "type": "final_static",
+      "lead": 0.25
+    }
+  ]
+}

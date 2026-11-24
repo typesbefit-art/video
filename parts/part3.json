@@ -1,0 +1,214 @@
+{
+  "voice": {
+    "pause": 0.5,
+    "pause_inline": 0.3,
+    "pause_after_title": 0.5,
+    "pause_before_last": 1.5,
+    "tension_ramp": 4,
+    "max_rate": 15,
+    "min_pause": 0.3,
+    "pause_before": {
+      "В четыре двери распахнулись сами": 1.3,
+      "Двести четырнадцатым шёл Семён": 1.5,
+      "Тогда я понял": 1.3,
+      "Охранник посмотрел на счётчик": 1.3
+    }
+  },
+  "duration": {
+    "min": 55,
+    "max": 65,
+    "fit": "auto"
+  },
+  "end": {
+    "card_on_black": true,
+    "gap": 0.4,
+    "fade": 2.6,
+    "card": 1.8
+  },
+  "cues": {
+    "clicks_from": "",
+    "counter_start": "",
+    "silence_at": "",
+    "monitors_flicker": "",
+    "silhouettes": "",
+    "crowd": "",
+    "counter_label": "ВНУТРИ:"
+  },
+  "counter": {
+    "alert_at": 214,
+    "initial": 215,
+    "alert_after": "Внутри: один"
+  },
+  "hud": {
+    "colon_blink": false,
+    "date": "2026-11-24"
+  },
+  "text": {
+    "uppercase": true,
+    "words_per_line": 3,
+    "max_lines": 2,
+    "subtitle_size": 92,
+    "subtitle_y": 0.632,
+    "sub_shade": "gradient",
+    "gradient_from": 0.56,
+    "gradient_strength": 0.42,
+    "title_style": "pale",
+    "title_seconds": 3.0,
+    "title_fade": 0.8,
+    "title_size": 120,
+    "title_opacity": 0.55,
+    "title_y": 0.4,
+    "end_card": "Новая история завтра\nПодписывайся",
+    "end_card_size": 92
+  },
+  "cameras": [
+    [
+      "CAM 01",
+      "ВХОД",
+      "entrance"
+    ],
+    [
+      "CAM 02",
+      "ГАЛЕРЕЯ 1",
+      "corridor"
+    ],
+    [
+      "CAM 03",
+      "АТРИУМ",
+      "hall"
+    ],
+    [
+      "CAM 04",
+      "ПАРКОВКА -1",
+      "parking"
+    ],
+    [
+      "CAM 05",
+      "СЛУЖ. КОРИДОР",
+      "service"
+    ],
+    [
+      "CAM 06",
+      "ФУДКОРТ",
+      "food"
+    ]
+  ],
+  "colors": {
+    "title_pale": [
+      218,
+      226,
+      218
+    ],
+    "door_tint": [
+      0.78,
+      0.92,
+      1.06
+    ]
+  },
+  "scene": {
+    "crowd_darkness": 0.55,
+    "overrides": {
+      "entrance": {
+        "cy": 0.5
+      }
+    },
+    "zoom_figure_back": 13
+  },
+  "audio": {
+    "radio_hiss_db": -36,
+    "radio_click_db": -20,
+    "tone_db": -30,
+    "drone_db": -32,
+    "static_db": -32
+  },
+  "speakers": {
+    "semyon": {
+      "name": "ru-RU-DmitryNeural",
+      "rate": -12,
+      "pitch": -6,
+      "fx": "none"
+    },
+    "guard": {
+      "name": "ru-RU-DmitryNeural",
+      "rate": -2,
+      "pitch": 3,
+      "fx": "none"
+    }
+  },
+  "dialogue": [
+    {
+      "starts": "Спасибо, что считал",
+      "speaker": "semyon"
+    },
+    {
+      "exact": "Один",
+      "speaker": "guard"
+    }
+  ],
+  "clock": {
+    "start": "03:55:00",
+    "ramps": [
+      {
+        "from_phrase": "Коридор был пуст",
+        "to_phrase": "распахнулись",
+        "to": "04:00:00"
+      }
+    ]
+  },
+  "effects": [
+    {
+      "type": "corridor_crowd",
+      "cam": 5,
+      "initial": true,
+      "vanish_phrase": "вышел из дежурки"
+    },
+    {
+      "type": "doors_open",
+      "cam": 1,
+      "phrase": "распахнулись"
+    },
+    {
+      "type": "count_out",
+      "cam": 1,
+      "numbers_from": "Я считал вслух",
+      "burst_from": "двухсот",
+      "burst_until": "Двести четырнадцатым шёл Семён",
+      "turn_phrase": "Он остановился",
+      "last_step_phrase": "вышел в рассвет",
+      "start": 215,
+      "sequence": "1-10,20-210:10,211-214"
+    },
+    {
+      "type": "freeze",
+      "phrase": "Двести четырнадцатым шёл Семён",
+      "duration": 1.0
+    },
+    {
+      "type": "silence_before",
+      "phrase": "Двести четырнадцатым шёл Семён",
+      "seconds": 1.5
+    },
+    {
+      "type": "shake",
+      "phrase": "Внутри: один",
+      "duration": 0.9,
+      "amp": 7
+    },
+    {
+      "type": "zoom_cam",
+      "cam": 5,
+      "phrase": "Один",
+      "occurrence": "last",
+      "duration": 0.7
+    },
+    {
+      "type": "drone",
+      "phrase": "Один",
+      "occurrence": "last"
+    },
+    {
+      "type": "final_static",
+      "lead": 0.25
+    }
+  ]
+}
