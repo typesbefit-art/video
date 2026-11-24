@@ -1,0 +1,5 @@
+.cache/
+__pycache__/
+output*.mp4
+bg/*
+!bg/README.md
