@@ -1,0 +1,6 @@
+output*.mp4
+preview*.mp4
+.cache/
+__pycache__/
+bg/*
+!bg/.gitkeep
