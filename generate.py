@@ -293,6 +293,16 @@ def find_recordings(name):
         files = sorted(p for p in d.iterdir() if p.suffix.lower() in AUDIO_EXT)
         if files:
             return {"files": files}
+    roles = {}
+    vd = ROOT / "voice"
+    for role in ("narrator", "female"):
+        # part2_narrator.mp3 или несколько кусков part2_narrator_1.mp3, part2_narrator_2.mp3 …
+        fs = [p for p in (vd.glob(f"{name}_{role}*") if vd.is_dir() else [])
+              if p.suffix.lower() in AUDIO_EXT and re.fullmatch(rf"{re.escape(name)}_{role}(_?\d+)?", p.stem)]
+        if fs:
+            roles[role] = sorted(fs, key=lambda p: int(re.sub(r"\D", "", p.stem[len(name) + len(role) + 1:]) or 0))
+    if "narrator" in roles:
+        return {"roles": roles}
     for ext in AUDIO_EXT:
         f = ROOT / "voice" / f"{name}{ext}"
         if f.exists():
@@ -387,6 +397,23 @@ def load_recorded(segments, cfg, rate_shift, sr):
         if missing:
             raise SystemExit(f"[voice] нет файлов для фраз: {missing} (ожидаю {n} файлов 01…{n:02d})")
         raws = [decode_audio(by_num[k], sr, af) for k in range(1, n + 1)]
+    elif "roles" in rec:
+        # два файла: все фразы рассказчика подряд и все женские реплики подряд
+        nq = sum(1 for sg in segments if sg["quote"])
+        def load_role(files):
+            gap = np.zeros(int(1.5 * sr), dtype=np.float32)
+            parts = []
+            for f in files:
+                parts += [decode_audio(f, sr, af), gap]
+            return np.concatenate(parts)
+        narr = split_by_silence(load_role(rec["roles"]["narrator"]), sr, n - nq)
+        fem = []
+        if nq:
+            if "female" not in rec["roles"]:
+                raise SystemExit(f"[voice] нужен файл с женскими репликами ({nq} шт.): voice/<часть>_female.mp3")
+            fem = split_by_silence(load_role(rec["roles"]["female"]), sr, nq)
+        it_n, it_f = iter(narr), iter(fem)
+        raws = [next(it_f) if sg["quote"] else next(it_n) for sg in segments]
     else:
         raws = split_by_silence(decode_audio(rec["single"], sr, af), sr, n)
     out = []
@@ -1620,7 +1647,7 @@ def main():
     rec = find_recordings(rec_name)
     if rec:
         cfg["_recorded"] = rec
-        src = rec.get("single") or rec["files"][0].parent
+        src = rec.get("single") or (rec["roles"]["narrator"][0] if "roles" in rec else rec["files"][0].parent)
         print(f"[voice] беру свою озвучку: {Path(src).relative_to(ROOT) if str(src).startswith(str(ROOT)) else src}")
     else:
         print("[voice] озвучка через edge-tts…")
