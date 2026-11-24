@@ -1,0 +1,92 @@
+# Часть 3: «Видеоняня. Лена»
+
+[video]
+min_duration = 55
+max_duration = 65
+outro_text = "Часть 4?"
+timecode_start = "03:00:00"
+
+[voice]
+pause_before_quote = 0.6
+narrator_quotes = ["Приходит от кого?"]     # это говорит сам рассказчик
+pause_before = [{ phrase = "Он уже стоял за нами", pause = 1.3 }]
+
+[subtitles]
+words_max = 3
+
+# ── События ──
+[[events]]
+type = "ghost"            # CAM 01: размытая тень женщины справа у кроватки, спиной
+show = "@start"
+fade_in = 0
+
+[[events]]
+type = "camera"           # переключение на CAM 02 после этих слов
+phrase = "поставили вторую камеру"
+camera = 2
+label = "CAM 02  ·  IR"
+
+[[events]]
+type = "timecode"         # на CAM 02 часы идут так, чтобы на «В три ноль-ноль» было 03:00:00
+phrase = "поставили вторую камеру"
+at = "end"
+value = "03:00:00"
+anchor = "В три ноль"
+
+[[events]]
+type = "ghost"            # CAM 02: Лена у кроватки спиной к нам
+show = "Лена стояла у кроватки"
+camera = 2
+x = 0.36
+y = 0.74
+height = 0.38
+blur = 9
+strength = 0.20
+fade_in = 1.0
+
+[[events]]
+type = "music_box"
+start = "В три ноль"
+stop = "стоял кто-то высокий"
+
+[[events]]
+type = "ghost"            # высокий силуэт в тёмном углу CAM 02
+show = "стоял кто-то высокий"
+camera = 2
+kind = "tall"
+dark = true
+x = 0.17
+y = 0.86
+height = 0.52
+blur = 8
+strength = 0.36
+flicker = 1.0             # мерцает раз в секунду
+grow_to = 1.10            # +10% к фразе ниже
+grow_until = "Он уже стоял за нами"
+fade_in = 2.5
+
+[[events]]
+type = "hum"              # низкий гул 35–50 Гц, нарастает до конца
+start = "стоял кто-то высокий"
+stop = "Он уже стоял за нами"
+below_voice_db = 12.5
+
+[[events]]
+type = "silence"          # гул обрывается, 1,5 с тишины перед фразой
+phrase = "Он уже стоял за нами"
+at = "before"
+duration = 1.5
+hold = true
+
+[[events]]
+type = "shake"
+phrase = "Он уже стоял за нами"
+amount = 28
+
+[[events]]
+type = "white_frame"      # один белый кадр на последнем слове
+word = "за нами"
+
+[[events]]
+type = "ending"
+phrase = "за нами"

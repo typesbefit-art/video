@@ -3,3 +3,4 @@ __pycache__/
 output*.mp4
 bg/*
 !bg/README.md
+reference/*.mp4

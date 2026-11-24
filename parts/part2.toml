@@ -1,0 +1,85 @@
+# Часть 2: «Видеоняня. Третье устройство»
+# Здесь только то, что отличается от config.toml. Списки (events) заменяются целиком.
+
+[video]
+min_duration = 55
+max_duration = 65
+outro_text = "Часть 3?"
+timecode_start = "03:01:12"
+
+[voice]
+pause_before_quote = 0.6
+# эти «кавычки» читает рассказчик: надпись в приложении и названия устройств
+narrator_quotes = ["Подключённые устройства: три", "Аня", "Лена", "Сейчас смотрит"]
+pause_before = [{ phrase = "Мы не знаем ни одной Лены", pause = 1.3 }]
+
+[subtitles]
+words_max = 3
+
+# Цвета и шрифт карточки приложения
+[card]
+panel = "#101412"
+row = "#1A201D"
+muted = "#878F8A"
+alert = "#E3242B"
+green = "#3DDC72"
+
+# ── События ──
+[[events]]
+type = "ghost"            # тень справа у кроватки, как в конце первой части
+show = "@start"
+fade_in = 0
+hide = "Женщины в детской больше не было"
+fade_out = 1.8
+
+[[events]]
+type = "day"              # утренний кадр дневной камеры
+start = "Утром я открыл приложение"
+stop = "Три часа ночи"
+fade_in = 0.35
+fade_out = 1.2
+
+[[events]]
+type = "timecode"
+phrase = "Утром я открыл приложение"
+value = "07:42:16"
+
+[[events]]
+type = "timecode"
+phrase = "Три часа ночи"
+value = "03:00:00"
+
+[[events]]
+type = "music_box"        # чистая громкая шкатулка на записи
+start = "на дорожке звука"
+stop = "Потом я открыл настройки"
+clean = true
+below_voice_db = 12.5
+
+[[events]]
+type = "card"
+phrase = "Подключённые устройства"
+title = "Подключённые устройства"
+rows = [
+  { name = "Телефон", style = "muted", reveal = "Мой телефон" },
+  { name = "Аня",     style = "muted", reveal = "Аня" },
+  { name = "Лена",    style = "alert", reveal = "Лена" },
+]
+note = "Подключено в первую ночь"
+note_reveal = "В первую ночь"
+status = "Сейчас смотрит"
+status_reveal = "Сейчас смотрит"
+
+[[events]]
+type = "silence"          # всё резко стихает до конца
+phrase = "Сейчас смотрит"
+at = "start"
+duration = "end"
+
+[[events]]
+type = "hit"
+word = "Сейчас смотрит"
+
+[[events]]
+type = "ending"
+phrase = "Сейчас смотрит"
