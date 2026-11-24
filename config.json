@@ -1,0 +1,62 @@
+{
+  "voice": {
+    "name": "ru-RU-DmitryNeural",
+    "rate": "-4%",
+    "pitch": "-3Hz",
+    "speak_title": true,
+    "sentence_pause": 0.4,
+    "joke_pause": 1.0
+  },
+
+  "duration": { "min": 50, "max": 65, "outro": 1.5, "title": 1.5 },
+
+  "subtitles": {
+    "font_size": 92,
+    "y_position": 0.62,
+    "max_words": 4,
+    "uppercase": true,
+    "text_color": "#FFFFFF",
+    "stroke_color": "#000000",
+    "stroke_width": 9,
+    "highlight_color": "#FF2B2B",
+    "joke_highlight_color": "#FFD60A"
+  },
+
+  "title": { "font_size": 132, "color": "#FFFFFF", "stroke_color": "#000000" },
+
+  "outro": {
+    "text": "Часть 2? Подписывайся",
+    "plate_color": "#E0162B",
+    "text_color": "#FFFFFF",
+    "font_size": 100
+  },
+
+  "background": {
+    "folder": "bg",
+    "dim": 0.35,
+    "gradient_top": "#0B1033",
+    "gradient_bottom": "#2E0D4A",
+    "fog_color": "#8C84C8"
+  },
+
+  "glow": {
+    "scary_color": "#FF1E1E",
+    "relief_color": "#22FF66",
+    "width": 120
+  },
+
+  "audio": {
+    "drone_db": -28,
+    "voice_db": -14,
+    "min_voice_over_music_db": 12
+  },
+
+  "cues": {
+    "light_on": "Я включил свет",
+    "red_glow": "Она светилась красным",
+    "joke_start": "Ты не продлил подписку на музыку",
+    "joke_end": "Я всё это время молчала",
+    "relief": "Я выдохнул",
+    "final": "Она светилась ещё минуту"
+  }
+}
