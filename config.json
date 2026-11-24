@@ -1,0 +1,62 @@
+{
+  "voice": {
+    "name": "ru-RU-DmitryNeural",
+    "rate": -2,
+    "pitch": -2,
+    "mood_drift": { "enabled": true, "rate_end": -5, "pitch_end": 0 }
+  },
+
+  "pauses": {
+    "default": 0.4,
+    "before": { "Хватит есть лапшу по ночам": 1.0 }
+  },
+
+  "ghost": {
+    "markers": ["он", "призрак", "призрака", "старик", "старика", "дед"]
+  },
+
+  "colors": {
+    "text": "#FFFFFF",
+    "stroke": "#000000",
+    "highlight": "#FF2B2B",
+    "ghost_highlight": "#7FD8FF",
+    "ghost_text": "#E6F7FF",
+    "cta_plate": "#D7141E",
+    "cta_text": "#FFFFFF",
+    "bg_top": "#07122A",
+    "bg_bottom": "#06393A",
+    "fog": "#9CC7CF"
+  },
+
+  "subtitles": {
+    "font": "Inter-ExtraBold",
+    "size": 112,
+    "stroke": 9,
+    "y": 0.62,
+    "uppercase": true,
+    "max_words": 4
+  },
+
+  "title": { "duration": 1.5, "size": 128 },
+  "cta": { "text": "Часть 2?\nПодписывайся", "duration": 1.5 },
+
+  "sfx": [
+    { "type": "chair",  "match": "стул" },
+    { "type": "whoosh", "match": "прозрачн" },
+    { "type": "slurp",  "match": "даже я готовил лучше" },
+    { "type": "vanish", "match": "@last:2" }
+  ],
+
+  "vfx": [
+    { "type": "flicker", "match": "прозрачн" },
+    { "type": "dim", "match": "растворил", "amount": 0.4, "fade": 1.2 }
+  ],
+
+  "audio": {
+    "drone_db": -28,
+    "voice_rms_db": -14,
+    "min_voice_over_music_db": 12
+  },
+
+  "duration": { "min": 50, "max": 65 }
+}

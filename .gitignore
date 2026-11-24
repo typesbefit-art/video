@@ -1,0 +1,4 @@
+.cache/
+*.mp4
+!bg/*.mp4
+__pycache__/
